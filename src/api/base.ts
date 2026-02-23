@@ -1,0 +1,122 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+
+/**
+ * API 응답 공통 타입
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+/**
+ * API 에러 응답 타입
+ */
+export interface ApiError {
+  success: false;
+  message: string;
+  code?: string;
+}
+
+/**
+ * 서비스별 Base URL 설정
+ */
+export const SERVICE_URLS = {
+  USER: import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:3001',
+  SCHEDULE: import.meta.env.VITE_SCHEDULE_SERVICE_URL || 'http://localhost:3002',
+  INTELLIGENCE: import.meta.env.VITE_INTELLIGENCE_SERVICE_URL || 'http://localhost:3003',
+  INSIGHT: import.meta.env.VITE_INSIGHT_SERVICE_URL || 'http://localhost:3004',
+} as const;
+
+/**
+ * 공통 Axios 인스턴스 생성 함수
+ */
+export const createApiClient = (baseURL: string): AxiosInstance => {
+  const instance = axios.create({
+    baseURL,
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  // Request Interceptor
+  instance.interceptors.request.use(
+    (config) => {
+      // 인증 토큰이 있다면 헤더에 추가
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Response Interceptor
+  instance.interceptors.response.use(
+    (response: AxiosResponse) => {
+      return response;
+    },
+    (error) => {
+      // 에러 처리 로직
+      if (error.response?.status === 401) {
+        // 인증 실패 시 로그인 페이지로 리다이렉트 등
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
+};
+
+/**
+ * 각 서비스별 Axios 인스턴스
+ */
+export const apiClients = {
+  user: createApiClient(SERVICE_URLS.USER),
+  schedule: createApiClient(SERVICE_URLS.SCHEDULE),
+  intelligence: createApiClient(SERVICE_URLS.INTELLIGENCE),
+  insight: createApiClient(SERVICE_URLS.INSIGHT),
+} as const;
+
+/**
+ * 공통 API 호출 헬퍼 함수
+ */
+export class BaseApiService {
+  constructor(protected client: AxiosInstance) {}
+
+  protected async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.get<ApiResponse<T>>(url, config);
+    return response.data.data;
+  }
+
+  protected async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.post<ApiResponse<T>>(url, data, config);
+    return response.data.data;
+  }
+
+  protected async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.put<ApiResponse<T>>(url, data, config);
+    return response.data.data;
+  }
+
+  protected async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.patch<ApiResponse<T>>(url, data, config);
+    return response.data.data;
+  }
+
+  protected async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.delete<ApiResponse<T>>(url, config);
+    return response.data.data;
+  }
+}

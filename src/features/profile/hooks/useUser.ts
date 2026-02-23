@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userApi } from '../../../api/user.api';
+import { userService } from '../../../api/user.service';
 import { UserProfile } from '../../../types';
 
 export const useUser = () => {
@@ -12,11 +12,11 @@ export const useUser = () => {
 
   const { data: profile } = useQuery({
     queryKey: ['userProfile'],
-    queryFn: userApi.getProfile,
+    queryFn: () => userService.getProfile(),
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: userApi.updateProfile,
+    mutationFn: (updates: Partial<UserProfile>) => userService.updateProfile(updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     },
