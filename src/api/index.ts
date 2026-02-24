@@ -31,8 +31,17 @@ export type {
 export { insightService } from './insight.service';
 export type {
   StatsPeriod,
+  DayOfWeek,
   CompletionStats,
   CategoryStats,
   ProductivityReport,
   GoalProgress,
+  GrowthFeedback,
+  TimelineChartData,
+  TimelineFeedback,
+  PatternChartData,
+  PatternFeedback,
+  SummaryFeedback,
+  FeedbackDashboard,
+  DailyCheerFeedback,
 } from './insight.service';
