@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { BarChart3, Rocket, ArrowRight, Brain } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Task } from '../../../types';
-
+import { insightService, FeedbackDashboard } from '../../../api';
+import { useErrorHandler } from '../../../hooks/useErrorHandler';
+import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { useTasksContext } from '../../tasks/context/TasksContext';
+import { COLORS, CHART_COLORS } from '../../../constants/colors';
 
 interface ReportPageProps {
   selectedKeywords: string[];
@@ -12,12 +14,113 @@ interface ReportPageProps {
   growthData: any[];
 }
 
-const ReportPage: React.FC<ReportPageProps> = ({
-  selectedKeywords,
-  weeklyPerformance,
-  growthData,
-}) => {
+// 더미 데이터 (백엔드 연결 전 테스트용)
+const MOCK_DASHBOARD: FeedbackDashboard = {
+  targetPeriod: {
+    month: '2026-02',
+    week: '9',
+  },
+  feedbacks: {
+    growth: {
+      topicName: '운동',
+      growthRate: 24,
+      message: '이전 3개월 보다 운동 분야에서 24% 성장했어요! 정말 대단한 변화입니다.',
+    },
+    timeline: {
+      chartData: [
+        { month: '11월', rate: 45 },
+        { month: '12월', rate: 60 },
+        { month: '1월', rate: 84 },
+      ],
+    },
+    pattern: {
+      worstDay: 'SUNDAY',
+      avgPostponeCount: 5,
+      message: '일요일에 할 일을 미루는 경향이 가장 높습니다(평균 5회). 일요일은 계획을 가볍게 잡거나 휴식에 집중해보세요.',
+      chart: [
+        { dayOfWeek: 'MONDAY', completionRate: 85, postponeCount: 0 },
+        { dayOfWeek: 'TUESDAY', completionRate: 90, postponeCount: 0 },
+        { dayOfWeek: 'WEDNESDAY', completionRate: 70, postponeCount: 1 },
+        { dayOfWeek: 'THURSDAY', completionRate: 80, postponeCount: 1 },
+        { dayOfWeek: 'FRIDAY', completionRate: 75, postponeCount: 2 },
+        { dayOfWeek: 'SATURDAY', completionRate: 50, postponeCount: 3 },
+        { dayOfWeek: 'SUNDAY', completionRate: 30, postponeCount: 5 },
+      ],
+    },
+    summary: {
+      achievementTrend: '+12%',
+      bestFocusTime: '08:00-10:00',
+      message: '달성률이 12% 상승했습니다. 오전 10시 이전에 중요한 태스크를 배치하세요.',
+    },
+  },
+};
+
+// 요일 한글 변환 헬퍼
+const getDayKorean = (day: string): string => {
+  const dayMap: Record<string, string> = {
+    'MONDAY': '월',
+    'TUESDAY': '화',
+    'WEDNESDAY': '수',
+    'THURSDAY': '목',
+    'FRIDAY': '금',
+    'SATURDAY': '토',
+    'SUNDAY': '일',
+  };
+  return dayMap[day] || day;
+};
+
+const ReportPage: React.FC<ReportPageProps> = () => {
   const { tasks } = useTasksContext();
+  const [dashboard, setDashboard] = useState<FeedbackDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [useMockData, setUseMockData] = useState(false);
+  const { error, handleError, clearError } = useErrorHandler();
+
+  // 현재 연월과 주차 계산
+  const getCurrentYearMonth = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  const getCurrentWeek = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dayOfMonth = now.getDate();
+    const dayOfWeek = firstDay.getDay();
+    return Math.ceil((dayOfMonth + dayOfWeek) / 7);
+  };
+
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      clearError();
+      
+      const yearMonth = getCurrentYearMonth();
+      const week = getCurrentWeek();
+      
+      const data = await insightService.getFeedbackDashboard(yearMonth, week);
+      setDashboard(data);
+      setUseMockData(false);
+    } catch (err) {
+      console.warn('API 호출 실패, 더미 데이터 사용:', err);
+      // 네트워크 오류 시 더미 데이터 사용
+      setDashboard(MOCK_DASHBOARD);
+      setUseMockData(true);
+      handleError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  // 로딩 중
+  if (loading) {
+    return <LoadingSpinner size="large" message="리포트를 불러오는 중..." />;
+  }
+
   return (
     <motion.div
       key="report"
@@ -26,6 +129,15 @@ const ReportPage: React.FC<ReportPageProps> = ({
       exit={{ opacity: 0, y: -10 }}
       className="h-full flex flex-col pt-4"
     >
+      {/* 더미 데이터 사용 중 알림 */}
+      {useMockData && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+          <p className="text-xs text-amber-700 text-center">
+            ⚠️ 테스트 모드: 백엔드 연결 전 더미 데이터를 표시하고 있습니다.
+          </p>
+        </div>
+      )}
+
       {tasks.length < 10 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
@@ -37,7 +149,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
             충분한 데이터가 쌓이면 AI 리포트가 생성됩니다.
           </p>
         </div>
-      ) : (
+      ) : dashboard ? (
         <div className="flex-1 overflow-y-auto scrollbar-hide space-y-6 pb-10">
           {/* Growth Encouragement Card */}
           <div className="glass-card p-6 rounded-[32px] bg-gradient-to-br from-primary to-indigo-600 text-white border-none shadow-xl shadow-primary/20">
@@ -50,7 +162,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
             </p>
             <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl">
               <p className="text-[11px] font-bold opacity-90 leading-relaxed">
-                이전 3개월 보다 <span className="text-sky-300">운동</span> 분야에서 <span className="text-sky-300">24%</span> 성장했어요! 정말 대단한 변화입니다.
+                {dashboard.feedbacks.growth.message}
               </p>
             </div>
           </div>
@@ -60,18 +172,21 @@ const ReportPage: React.FC<ReportPageProps> = ({
             <h4 className="text-sm font-bold mb-6">성장 타임라인</h4>
             <div className="h-[140px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={growthData}>
+                <BarChart data={dashboard.feedbacks.timeline.chartData}>
                   <XAxis 
                     dataKey="month" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} 
+                    tick={{ fontSize: 10, fontWeight: 'bold', fill: CHART_COLORS.axis.text }} 
                   />
-                  <Bar dataKey="score" radius={[4, 4, 4, 4]} barSize={30}>
-                    {growthData.map((entry, index) => (
+                  <Bar dataKey="rate" radius={[4, 4, 4, 4]} barSize={30}>
+                    {dashboard.feedbacks.timeline.chartData.map((_, index) => (
                       <Cell 
                         key={`cell-${index}`} 
-                        fill={index === growthData.length - 1 ? '#7C5CFF' : '#F3F4F6'} 
+                        fill={index === dashboard.feedbacks.timeline.chartData.length - 1 
+                          ? CHART_COLORS.bar.primary 
+                          : CHART_COLORS.bar.inactive
+                        } 
                       />
                     ))}
                   </Bar>
@@ -88,16 +203,32 @@ const ReportPage: React.FC<ReportPageProps> = ({
             <h4 className="text-sm font-bold mb-6">수행 및 미룸 패턴</h4>
             <div className="h-[180px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyPerformance}>
+                <BarChart data={dashboard.feedbacks.pattern.chart.map(item => ({
+                  day: getDayKorean(item.dayOfWeek),
+                  rate: item.completionRate,
+                  postponed: item.postponeCount,
+                }))}>
                   <XAxis 
                     dataKey="day" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} 
+                    tick={{ fontSize: 10, fontWeight: 'bold', fill: CHART_COLORS.axis.text }} 
                   />
-                  <Tooltip cursor={{ fill: 'transparent' }} />
-                  <Bar dataKey="rate" name="수행률" fill="#7C5CFF" radius={[4, 4, 0, 0]} barSize={12} />
-                  <Bar dataKey="postponed" name="미룸 횟수" fill="#FF8A8A" radius={[4, 4, 0, 0]} barSize={12} />
+                  <Tooltip cursor={{ fill: COLORS.transparent }} />
+                  <Bar 
+                    dataKey="rate" 
+                    name="수행률" 
+                    fill={CHART_COLORS.bar.primary} 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={12} 
+                  />
+                  <Bar 
+                    dataKey="postponed" 
+                    name="미룸 횟수" 
+                    fill={CHART_COLORS.bar.secondary} 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={12} 
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -107,8 +238,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
                 <h5 className="text-[11px] font-bold text-red-800">미룸 패턴 주의보</h5>
               </div>
               <p className="text-[10px] text-red-700 leading-relaxed">
-                <span className="font-bold">일요일</span>에 할 일을 미루는 경향이 가장 높습니다(평균 5회). 
-                일요일은 계획을 가볍게 잡거나 휴식에 집중해보세요.
+                {dashboard.feedbacks.pattern.message}
               </p>
             </div>
           </div>
@@ -122,10 +252,13 @@ const ReportPage: React.FC<ReportPageProps> = ({
               <h4 className="text-xs font-bold text-amber-800">AI 종합 피드백</h4>
             </div>
             <p className="text-[11px] text-amber-700 leading-relaxed">
-              목표 대비 달성률이 지난주보다 12% 상승했습니다. 특히 아침 시간대 집중력이 좋습니다. 
-              중요한 태스크는 오전 10시 이전에 배치하는 것을 추천합니다.
+              {dashboard.feedbacks.summary.message}
             </p>
           </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-gray-400">데이터를 불러올 수 없습니다.</p>
         </div>
       )}
     </motion.div>
