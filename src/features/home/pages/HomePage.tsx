@@ -1,9 +1,9 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { MessageCircle, Rocket, Plus } from 'lucide-react';
-import TaskList from '../../tasks/components/TaskList';
+import { motion, AnimatePresence } from 'motion/react';
+import { MessageCircle, Rocket, Plus, Check, MoreVertical, Edit2, ArrowRight, Trash2 } from 'lucide-react';
 import { useTasksContext } from '../../tasks/context/TasksContext';
 import { Task } from '../../../types';
+import AddTaskForm from '../../tasks/components/AddTaskForm';
 
 interface HomePageProps {
   today: string;
@@ -18,10 +18,11 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const task = useTasksContext();
   const {
-    tasks, editingTaskId, setEditingTaskId, newTaskText, setNewTaskText,
-    newTaskCategory, setNewTaskCategory, isAddingTask, setIsAddingTask,
-    activeMenuId, setActiveMenuId, addTask, updateTask, deleteTask,
-    toggleComplete, postponeTask
+    tasks, editingTaskId, setEditingTaskId, updateTask, deleteTask,
+    toggleComplete, postponeTask, isAddingTask, setIsAddingTask,
+    activeMenuId, setActiveMenuId, setNewTaskCategory,
+    // Monthly Goal
+    monthlyGoals
   } = task;
 
   const filteredTasks = tasks.filter(t => t.date === today);
@@ -100,57 +101,164 @@ const HomePage: React.FC<HomePageProps> = ({
               acc[task.category].push(task);
               return acc;
             }, {})
-          ).map(([category, categoryTasks]) => (
-            <div key={category} className="space-y-3">
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-1 h-3 bg-primary rounded-full" />
-                {category}
-              </h4>
-              <TaskList 
-                tasks={categoryTasks as Task[]}
-                onToggle={toggleComplete}
-                onDelete={deleteTask}
-                onPostpone={postponeTask}
-                onEdit={(id: string) => setEditingTaskId(id)}
-                editingId={editingTaskId}
-                onUpdate={updateTask}
-                activeMenuId={activeMenuId}
-                setActiveMenuId={setActiveMenuId}
-                isAdding={false}
-                onAdd={() => {}}
-                newTaskText={''}
-                setNewTaskText={() => {}}
-              />
-            </div>
-          ))
+          ).map(([category, categoryTasks]) => {
+            // Group tasks by goal within category
+            const tasksWithGoal = (categoryTasks as Task[]).filter(t => t.goalId);
+            const tasksWithoutGoal = (categoryTasks as Task[]).filter(t => !t.goalId);
+            
+            // Group tasks with goals by goalId
+            const tasksByGoal = tasksWithGoal.reduce((acc: Record<string, Task[]>, task) => {
+              const goalId = task.goalId!;
+              if (!acc[goalId]) acc[goalId] = [];
+              acc[goalId].push(task);
+              return acc;
+            }, {});
+
+            return (
+              <div key={category} className="space-y-4">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-1 h-3 bg-primary rounded-full" />
+                  {category}
+                </h4>
+
+                {/* Tasks grouped by goals */}
+                {Object.entries(tasksByGoal).map(([goalId, goalTasks]) => {
+                  const goal = monthlyGoals.find(g => g.id === goalId);
+                  if (!goal) return null;
+
+                  return (
+                    <div key={goalId} className="ml-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h5 className="text-[11px] font-bold">{goal.title}</h5>
+                      </div>
+                      
+                      <div className="ml-3 space-y-2">
+                        {(goalTasks as Task[]).map(task => (
+                          <div key={task.id} className="relative group">
+                            <div className={`glass-card p-3 rounded-xl flex items-center gap-3 transition-all ${task.completed ? 'opacity-50' : ''}`}>
+                              <button 
+                                onClick={() => toggleComplete(task.id)}
+                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${task.completed ? 'bg-primary border-primary text-white' : 'border-gray-200'}`}
+                              >
+                                {task.completed && <Check size={12} />}
+                              </button>
+                              
+                              <div className="flex-1">
+                                {editingTaskId === task.id ? (
+                                  <input
+                                    autoFocus
+                                    defaultValue={task.text}
+                                    onBlur={(e) => updateTask(task.id, e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && updateTask(task.id, e.currentTarget.value)}
+                                    className="w-full bg-transparent border-none outline-none text-sm font-medium"
+                                  />
+                                ) : (
+                                  <span className={`block text-sm font-medium ${task.completed ? 'line-through text-gray-400' : ''}`}>
+                                    {task.text}
+                                  </span>
+                                )}
+                              </div>
+
+                              <button 
+                                onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
+                                className="p-1 text-gray-400 hover:text-gray-600"
+                              >
+                                <MoreVertical size={16} />
+                              </button>
+                            </div>
+
+                            {/* Kebab Menu */}
+                            {activeMenuId === task.id && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                className="absolute right-0 top-12 z-50 w-32 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 overflow-hidden"
+                              >
+                                <button onClick={() => setEditingTaskId(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
+                                  <Edit2 size={14} /> 수정
+                                </button>
+                                <button onClick={() => postponeTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
+                                  <ArrowRight size={14} /> 미루기
+                                </button>
+                                <button onClick={() => deleteTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl">
+                                  <Trash2 size={14} /> 삭제
+                                </button>
+                              </motion.div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Tasks without goals */}
+                {tasksWithoutGoal.length > 0 && (
+                  <div className="ml-3 space-y-2">
+                    {tasksWithoutGoal.map(task => (
+                      <div key={task.id} className="relative group">
+                        <div className={`glass-card p-4 rounded-2xl flex items-center gap-3 transition-all ${task.completed ? 'opacity-50' : ''}`}>
+                          <button 
+                            onClick={() => toggleComplete(task.id)}
+                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${task.completed ? 'bg-primary border-primary text-white' : 'border-gray-200'}`}
+                          >
+                            {task.completed && <Check size={14} />}
+                          </button>
+                          
+                          <div className="flex-1">
+                            {editingTaskId === task.id ? (
+                              <input
+                                autoFocus
+                                defaultValue={task.text}
+                                onBlur={(e) => updateTask(task.id, e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && updateTask(task.id, e.currentTarget.value)}
+                                className="w-full bg-transparent border-none outline-none text-sm font-medium"
+                              />
+                            ) : (
+                              <span className={`block text-sm font-medium ${task.completed ? 'line-through text-gray-400' : ''}`}>
+                                {task.text}
+                              </span>
+                            )}
+                          </div>
+
+                          <button 
+                            onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                        </div>
+
+                        {/* Kebab Menu */}
+                        {activeMenuId === task.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            className="absolute right-0 top-14 z-50 w-32 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 overflow-hidden"
+                          >
+                            <button onClick={() => setEditingTaskId(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
+                              <Edit2 size={14} /> 수정
+                            </button>
+                            <button onClick={() => postponeTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
+                              <ArrowRight size={14} /> 미루기
+                            </button>
+                            <button onClick={() => deleteTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl">
+                              <Trash2 size={14} /> 삭제
+                            </button>
+                          </motion.div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
 
-        {isAddingTask && (
-          <div className="space-y-3">
-            <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-2">
-              <div className="w-1 h-3 bg-primary rounded-full" />
-              새로운 할 일
-            </h4>
-            <TaskList 
-              tasks={[]}
-              onToggle={() => {}}
-              onDelete={() => {}}
-              onPostpone={() => {}}
-              onEdit={() => {}}
-              editingId={null}
-              onUpdate={() => {}}
-              activeMenuId={null}
-              setActiveMenuId={() => {}}
-              isAdding={true}
-              onAdd={() => addTask(today)}
-              newTaskText={newTaskText}
-              setNewTaskText={setNewTaskText}
-              newTaskCategory={newTaskCategory}
-              setNewTaskCategory={setNewTaskCategory}
-              categories={selectedKeywords}
-            />
-          </div>
-        )}
+        {isAddingTask && <AddTaskForm date={today} selectedKeywords={selectedKeywords} />}
       </div>
     </motion.div>
   );
