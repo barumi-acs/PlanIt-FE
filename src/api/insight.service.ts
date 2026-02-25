@@ -11,6 +11,11 @@ import { BaseApiService, apiClients } from './base';
 export type StatsPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 /**
+ * 요일 타입
+ */
+export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+/**
  * 완료율 통계 타입
  */
 export interface CompletionStats {
@@ -57,12 +62,113 @@ export interface GoalProgress {
 }
 
 /**
+ * 성장 피드백 타입
+ */
+export interface GrowthFeedback {
+  topicName: string;
+  growthRate: number;
+  message: string;
+}
+
+/**
+ * 타임라인 차트 데이터 타입
+ */
+export interface TimelineChartData {
+  month: string;
+  rate: number;
+}
+
+/**
+ * 타임라인 피드백 타입
+ */
+export interface TimelineFeedback {
+  chartData: TimelineChartData[];
+}
+
+/**
+ * 요일별 패턴 차트 데이터 타입
+ */
+export interface PatternChartData {
+  dayOfWeek: DayOfWeek;
+  completionRate: number;
+  postponeCount: number;
+}
+
+/**
+ * 미룸 패턴 피드백 타입
+ */
+export interface PatternFeedback {
+  worstDay: DayOfWeek;
+  avgPostponeCount: number;
+  message: string;
+  chart: PatternChartData[];
+}
+
+/**
+ * 종합 피드백 타입
+ */
+export interface SummaryFeedback {
+  achievementTrend: string;
+  bestFocusTime: string;
+  message: string;
+}
+
+/**
+ * 피드백 대시보드 응답 타입
+ */
+export interface FeedbackDashboard {
+  targetPeriod: {
+    month: string;
+    week: string;
+  };
+  feedbacks: {
+    growth: GrowthFeedback;
+    timeline: TimelineFeedback;
+    pattern: PatternFeedback;
+    summary: SummaryFeedback;
+  };
+}
+
+/**
+ * 일간 응원 피드백 타입
+ */
+export interface DailyCheerFeedback {
+  targetDate: string;
+  dayOfWeek: DayOfWeek;
+  cheerData: {
+    diffFromAvg: string;
+    isHigherThanAvg: boolean;
+    message: string;
+  };
+}
+
+/**
  * Insight Service API
  * 통계, 리포트, 인사이트 제공을 담당
  */
 class InsightService extends BaseApiService {
   constructor() {
     super(apiClients.insight);
+  }
+
+  /**
+   * AI 피드백 대시보드 전체 조회
+   * 성장 격려, 타임라인, 미룸 패턴, 종합 피드백을 한 번에 조회
+   */
+  async getFeedbackDashboard(yearMonth: string, week: number): Promise<FeedbackDashboard> {
+    return this.get<FeedbackDashboard>('/api/v1/feedbacks/dashboard', {
+      params: { yearMonth, week },
+    });
+  }
+
+  /**
+   * 일간 응원 피드백 조회
+   * 홈 화면 상단에 띄워줄 오늘의 요일별 수행률 기반 AI 응원 메시지
+   */
+  async getDailyCheerFeedback(targetDate?: string): Promise<DailyCheerFeedback> {
+    return this.get<DailyCheerFeedback>('/api/v1/feedbacks/daily-cheer', {
+      params: targetDate ? { targetDate } : undefined,
+    });
   }
 
   /**
