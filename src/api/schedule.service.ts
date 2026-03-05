@@ -4,192 +4,294 @@
  */
 
 import { BaseApiService, apiClients } from './base';
-import { Task } from '../types';
 
-/**
- * Task 생성 요청 타입
- */
+// ─── 백엔드 응답 타입 ─────────────────────────────────────────────────────────
+
+/** 일간 할 일 단일 항목 (백엔드 DailyTaskItem) */
+export interface DailyTaskItem {
+  taskId: number;
+  weekGoalsId: number;
+  weekGoalsTitle: string;
+  category?: string; // 화면 표시용 카테고리 (목표 없음 할 일에 사용)
+  content: string;
+  complete: boolean;
+  targetDate: string; // "yyyy-MM-dd"
+}
+
+/** GET /api/v1/schedules/tasks/daily 응답 */
+export interface DailyTaskResponse {
+  targetDate: string;
+  totalCount: number;
+  completedCount: number;
+  progressRate: number; // 0~100
+  tasks: DailyTaskItem[];
+}
+
+/** POST /api/v1/schedules/tasks 응답 */
+export interface TaskResponse {
+  taskId: number;
+  weekGoalsId: number;
+  content: string;
+  complete: boolean;
+  targetDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** PATCH /api/v1/schedules/tasks/{taskId} 응답 */
+export interface UpdateTaskResponse {
+  taskId: number;
+  content: string;
+  updatedAt: string;
+}
+
+/** PATCH /api/v1/schedules/tasks/{taskId}/complete 응답 */
+export interface CompleteTaskResponse {
+  taskId: number;
+  complete: boolean;
+  updatedAt: string;
+}
+
+/** PATCH /api/v1/schedules/tasks/{taskId}/postpone 응답 */
+export interface PostponeTaskResponse {
+  taskId: number;
+  content: string;
+  targetDate: string;
+  updatedAt: string;
+}
+
+/** 친구 할 일 단일 항목 */
+export interface FriendTaskItem {
+  taskId: number;
+  weekGoalsId: number;
+  weekGoalsTitle: string;
+  content: string;
+  complete: boolean;
+  targetDate: string;
+}
+
+/** GET /api/v1/schedules/tasks/friend/{friendUserId} 응답 */
+export interface FriendTaskResponse {
+  friendUserId: string;
+  targetDate: string;
+  tasks: FriendTaskItem[];
+}
+
+// ─── 요청 타입 ────────────────────────────────────────────────────────────────
+
+/** POST /api/v1/schedules/tasks 요청 */
 export interface CreateTaskRequest {
-  text: string;
-  date: string;
-  category: string;
-  completed?: boolean;
+  weekGoalsId?: number | null; // 목표 없음이면 null
+  category?: string; // 목표 없음 할 일에서 메인 목표 제목 또는 키워드
+  content: string;
+  targetDate: string; // "yyyy-MM-dd"
 }
 
-/**
- * Task 수정 요청 타입
- */
+/** PATCH /api/v1/schedules/tasks/{taskId} 요청 */
 export interface UpdateTaskRequest {
-  text?: string;
-  date?: string;
-  category?: string;
-  completed?: boolean;
+  content: string;
 }
 
-// Mock 데이터 (개발용)
-let mockTasks: Task[] = [
-  { id: '1', text: '아침 조깅 30분', date: new Date().toISOString().split('T')[0], completed: false, category: '운동' },
-  { id: '2', text: '경제 뉴스 읽기', date: new Date().toISOString().split('T')[0], completed: true, category: '투자' },
-];
+// ─── 이모지 타입 ───────────────────────────────────────────────────────────────
+
+export interface EmojiResponse {
+  emojiId: number;
+  emojiChar: string;
+  name: string;
+}
+
+export interface TaskEmojiGroupResponse {
+  emojiId: number;
+  emojiChar: string;
+  name: string;
+  count: number;
+  myReaction: boolean;
+}
+
+export interface TaskReactionListResponse {
+  taskId: number;
+  reactions: TaskEmojiGroupResponse[];
+}
+
+export interface AddEmojiReactionRequest {
+  emojiId: number;
+}
+
+export interface AddEmojiReactionResponse {
+  taskEmojiId: number;
+  taskId: number;
+  emojiId: number;
+  emojiChar: string;
+  userId: string;
+  createdAt: string;
+}
+
+// ─── Goal / WeekGoal 응답·요청 타입 ───────────────────────────────────────────
+
+/** GET /api/v1/schedules/goals?userId=... 단일 항목 */
+export interface GoalApiResponse {
+  goalsId: number;
+  categoryId: number | null;
+  title: string;
+  startDate: string; // "yyyy-MM-dd"
+  endDate: string;   // "yyyy-MM-dd"
+}
+
+/** 주간 목표 + 진행률 (GoalDetailResponse 하위 항목) */
+export interface BackendWeekGoal {
+  weekGoalsId: number;
+  title: string;
+  progressRate: number; // 0~100
+}
+
+/** GET /api/v1/schedules/goals/{goalsId} 응답 */
+export interface GoalDetailApiResponse {
+  goalsId: number;
+  title: string;
+  startDate: string;
+  endDate: string;
+  progressRate: number; // 0~100
+  weekGoals: BackendWeekGoal[];
+}
+
+/** POST /api/v1/schedules/goals 요청 */
+export interface CreateGoalApiRequest {
+  /** category_list.list_id 문자열 (ex. "1" = 직무/커리어) */
+  category: string;
+  title: string;
+  startDate: string; // "yyyy-MM-dd"
+  endDate: string;   // "yyyy-MM-dd"
+}
+
+/** POST /api/v1/schedules/goals/{goalsId}/week-goals 요청 */
+export interface CreateWeekGoalApiRequest {
+  title: string;
+}
+
+/** POST /api/v1/schedules/goals/{goalsId}/week-goals 응답 */
+export interface WeekGoalApiResponse {
+  weekGoalsId: number;
+  goalsId: number;
+  title: string;
+}
+
+// ─── userId 가져오기 (JWT 연동 전 임시) ──────────────────────────────────────
 
 /**
- * Schedule Service API
- * 일정 및 할일 관리를 담당
+ * 현재 사용자 ID 반환
+ * - JWT 연동 후: localStorage에서 파싱한 JWT claim으로 교체
+ * - 개발 단계: localStorage 'userId' 없으면 'dev-user-001' 기본값
  */
-class ScheduleService extends BaseApiService {
-  // Mock 모드 여부 (개발 환경에서는 true)
-  private useMock = import.meta.env.DEV;
+const getMyUserId = (): string => {
+  return localStorage.getItem('userId') || 'dev-user-001';
+};
 
+// ─── Schedule Service ────────────────────────────────────────────────────────
+
+class ScheduleService extends BaseApiService {
   constructor() {
     super(apiClients.schedule);
   }
 
-  /**
-   * 할일 목록 조회
-   */
-  async getTasks(date?: string): Promise<Task[]> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      if (date) {
-        return mockTasks.filter(t => t.date === date);
-      }
-      return mockTasks;
-    }
-    const params = date ? { date } : undefined;
-    return this.get<Task[]>('/api/v1/tasks', { params });
-  }
+  // ── Task CRUD ─────────────────────────────────────────────────────────────
 
-  /**
-   * 특정 할일 조회
-   */
-  async getTask(taskId: string): Promise<Task> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const task = mockTasks.find(t => t.id === taskId);
-      if (!task) throw new Error('Task not found');
-      return task;
-    }
-    return this.get<Task>(`/api/v1/tasks/${taskId}`);
-  }
-
-  /**
-   * 할일 생성
-   */
-  async createTask(task: CreateTaskRequest): Promise<Task> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const newTask: Task = {
-        ...task,
-        id: Math.random().toString(36).substr(2, 9),
-        completed: task.completed || false,
-      };
-      mockTasks = [...mockTasks, newTask];
-      return newTask;
-    }
-    return this.post<Task>('/api/v1/tasks', task);
-  }
-
-  /**
-   * 할일 수정
-   */
-  async updateTask(taskId: string, updates: UpdateTaskRequest): Promise<Task> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      mockTasks = mockTasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
-      const updated = mockTasks.find(t => t.id === taskId);
-      if (!updated) throw new Error('Task not found');
-      return updated;
-    }
-    return this.patch<Task>(`/api/v1/tasks/${taskId}`, updates);
-  }
-
-  /**
-   * 할일 삭제
-   */
-  async deleteTask(taskId: string): Promise<void> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      mockTasks = mockTasks.filter(t => t.id !== taskId);
-      return;
-    }
-    return this.delete<void>(`/api/v1/tasks/${taskId}`);
-  }
-
-  /**
-   * 할일 완료 상태 토글
-   */
-  async toggleTaskCompletion(taskId: string): Promise<Task> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      mockTasks = mockTasks.map(t =>
-        t.id === taskId ? { ...t, completed: !t.completed } : t
-      );
-      const updated = mockTasks.find(t => t.id === taskId);
-      if (!updated) throw new Error('Task not found');
-      return updated;
-    }
-    return this.post<Task>(`/api/v1/tasks/${taskId}/toggle`);
-  }
-
-  /**
-   * 할일 미루기 (다음날로 연기)
-   */
-  async postponeTask(taskId: string): Promise<Task> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const task = mockTasks.find(t => t.id === taskId);
-      if (!task) throw new Error('Task not found');
-
-      const date = new Date(task.date);
-      date.setDate(date.getDate() + 1);
-      const newDate = date.toISOString().split('T')[0];
-
-      return this.updateTask(taskId, { date: newDate });
-    }
-    return this.post<Task>(`/api/v1/tasks/${taskId}/postpone`);
-  }
-
-  /**
-   * 기간별 할일 조회
-   */
-  async getTasksByDateRange(startDate: string, endDate: string): Promise<Task[]> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return mockTasks.filter(t => t.date >= startDate && t.date <= endDate);
-    }
-    return this.get<Task[]>('/api/v1/tasks/range', {
-      params: { startDate, endDate },
+  /** 일간 할 일 조회 */
+  async getDailyTasks(targetDate: string): Promise<DailyTaskResponse> {
+    return this.get<DailyTaskResponse>('/api/v1/schedules/tasks/daily', {
+      params: { myUserId: getMyUserId(), targetDate },
     });
   }
 
-  /**
-   * 친구의 할일 조회
-   */
-  async getFriendTasks(friendId: string, date?: string): Promise<Task[]> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      // Mock: 친구의 할일 샘플 데이터
-      const today = new Date().toISOString().split('T')[0];
-      return [
-        { id: 'f1', text: '아침 러닝 5km', date: today, completed: true, category: '운동' },
-        { id: 'f2', text: 'TypeScript 공부 1시간', date: today, completed: false, category: '개발' },
-        { id: 'f3', text: '영어 단어 50개 암기', date: today, completed: false, category: '학습' },
-        { id: 'f4', text: '독서 30분', date: today, completed: true, category: '자기계발' },
-        { id: 'f5', text: '명상 10분', date: today, completed: false, category: '건강' },
-      ];
-    }
-    const params = date ? { date } : undefined;
-    return this.get<Task[]>(`/api/v1/tasks/friends/${friendId}`, { params });
+  /** 할 일 생성 */
+  async createTask(req: CreateTaskRequest): Promise<TaskResponse> {
+    return this.post<TaskResponse>('/api/v1/schedules/tasks', req);
+  }
+
+  /** 할 일 내용 수정 */
+  async updateTask(taskId: number, req: UpdateTaskRequest): Promise<UpdateTaskResponse> {
+    return this.patch<UpdateTaskResponse>(`/api/v1/schedules/tasks/${taskId}`, req);
+  }
+
+  /** 할 일 완료 토글 */
+  async toggleTaskCompletion(taskId: number): Promise<CompleteTaskResponse> {
+    return this.patch<CompleteTaskResponse>(`/api/v1/schedules/tasks/${taskId}/complete`);
+  }
+
+  /** 할 일 삭제 (Soft Delete) */
+  async deleteTask(taskId: number): Promise<void> {
+    return this.delete<void>(`/api/v1/schedules/tasks/${taskId}`);
+  }
+
+  /** 할 일 미루기 (+1일) */
+  async postponeTask(taskId: number): Promise<PostponeTaskResponse> {
+    return this.patch<PostponeTaskResponse>(`/api/v1/schedules/tasks/${taskId}/postpone`);
+  }
+
+  /** 친구의 일간 할 일 조회 */
+  async getFriendTasks(friendUserId: string, targetDate: string): Promise<FriendTaskResponse> {
+    return this.get<FriendTaskResponse>(`/api/v1/schedules/tasks/friend/${friendUserId}`, {
+      params: { myUserId: getMyUserId(), targetDate },
+    });
+  }
+
+  // ── 이모지 ───────────────────────────────────────────────────────────────
+
+  /** 이모지 목록 전체 조회 */
+  async getEmojiList(): Promise<EmojiResponse[]> {
+    return this.get<EmojiResponse[]>('/api/v1/schedules/emojis');
+  }
+
+  /** 할 일의 이모지 반응 목록 조회 (이모지별 그룹) */
+  async getTaskReactions(taskId: number): Promise<TaskReactionListResponse> {
+    return this.get<TaskReactionListResponse>(`/api/v1/schedules/tasks/${taskId}/emojis`, {
+      params: { userId: getMyUserId() },
+    });
+  }
+
+  /** 이모지 리액션 등록 */
+  async addEmojiReaction(taskId: number, req: AddEmojiReactionRequest): Promise<AddEmojiReactionResponse> {
+    return this.post<AddEmojiReactionResponse>(`/api/v1/schedules/tasks/${taskId}/emojis`, req, {
+      params: { userId: getMyUserId() },
+    });
+  }
+
+  /** 이모지 리액션 삭제 */
+  async deleteEmojiReaction(taskId: number, emojiId: number): Promise<void> {
+    return this.delete<void>(`/api/v1/schedules/tasks/${taskId}/emojis/${emojiId}`, {
+      params: { userId: getMyUserId() },
+    });
+  }
+
+  // ── Goal & WeekGoal ───────────────────────────────────────────────────────
+
+  /** 내 목표 목록 조회 */
+  async getGoals(): Promise<GoalApiResponse[]> {
+    return this.get<GoalApiResponse[]>('/api/v1/schedules/goals', {
+      params: { userId: getMyUserId() },
+    });
+  }
+
+  /** 목표 상세 조회 (주간 목표 + 진행률 포함) */
+  async getGoalDetail(goalsId: number): Promise<GoalDetailApiResponse> {
+    return this.get<GoalDetailApiResponse>(`/api/v1/schedules/goals/${goalsId}`);
+  }
+
+  /** 목표 생성 */
+  async createGoal(req: CreateGoalApiRequest): Promise<GoalApiResponse> {
+    return this.post<GoalApiResponse>('/api/v1/schedules/goals', req, {
+      params: { userId: getMyUserId() },
+    });
+  }
+
+  /** 목표 삭제 */
+  async deleteGoal(goalsId: number): Promise<void> {
+    return this.delete<void>(`/api/v1/schedules/goals/${goalsId}`);
+  }
+
+  /** 주간 목표 생성 */
+  async createWeekGoal(goalsId: number, req: CreateWeekGoalApiRequest): Promise<WeekGoalApiResponse> {
+    return this.post<WeekGoalApiResponse>(`/api/v1/schedules/goals/${goalsId}/week-goals`, req);
   }
 }
 
 export const scheduleService = new ScheduleService();
-
-// 하위 호환성을 위한 별칭 export
-export const tasksApi = {
-  getTasks: (date?: string) => scheduleService.getTasks(date),
-  addTask: (task: Omit<Task, 'id'>) => scheduleService.createTask(task),
-  updateTask: (id: string, updates: Partial<Task>) => scheduleService.updateTask(id, updates),
-  deleteTask: (id: string) => scheduleService.deleteTask(id),
-  postponeTask: (id: string) => scheduleService.postponeTask(id),
-};

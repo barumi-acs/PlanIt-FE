@@ -23,7 +23,7 @@ export interface ApiResponse<T = any> {
 export interface LegacyApiResponse<T = any> {
   success: boolean;
   data: T;
-  message?: string;
+  timestamp: string;
 }
 
 /**
