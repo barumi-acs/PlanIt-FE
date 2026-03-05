@@ -18,15 +18,31 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
     monthlyGoals
   } = useTasksContext();
 
+  // 목표 시작일 기준으로 현재 날짜(date)가 몇 번째 주차인지 계산 (0-based)
+  const calcWeekIndex = (goalStartDate: string, currentDate: string): number => {
+    const start = new Date(goalStartDate);
+    const current = new Date(currentDate);
+    const diffDays = Math.floor((current.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, Math.floor(diffDays / 7));
+  };
+
   // Get selected goal's weekly goals
   const selectedGoal = monthlyGoals.find(g => g.id === selectedGoalId);
   const weeklyGoalsOptions = selectedGoal?.weeklyGoals || [];
+
+  // 자동 계산된 주차의 주간 목표 텍스트
+  const autoWeekLabel =
+    selectedGoal && selectedWeekIndex !== null && weeklyGoalsOptions[selectedWeekIndex]
+      ? `${selectedWeekIndex + 1}주차: ${weeklyGoalsOptions[selectedWeekIndex]}`
+      : selectedGoal && selectedWeekIndex !== null
+        ? `${selectedWeekIndex + 1}주차`
+        : null;
 
   return (
     <div className="glass-card p-4 rounded-2xl border-2 border-dashed border-primary/30 space-y-4">
       <div className="flex justify-between items-center">
         <h4 className="text-sm font-bold text-primary">새로운 할 일 추가</h4>
-        <button 
+        <button
           onClick={cancelAddingTask}
           className="p-1 text-gray-400 hover:text-gray-600"
         >
@@ -44,28 +60,26 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
               setSelectedGoalId('');
               setSelectedWeekIndex(null);
             }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-              !hasGoal 
-                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-            }`}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${!hasGoal
+              ? 'bg-primary text-white shadow-lg shadow-primary/20'
+              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
           >
             목표 없음
           </button>
           <button
             onClick={() => setHasGoal(true)}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-              hasGoal 
-                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-            }`}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${hasGoal
+              ? 'bg-primary text-white shadow-lg shadow-primary/20'
+              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
           >
             목표 있음
           </button>
         </div>
       </div>
 
-      {/* Goal Selection (Conditional) */}
+      {/* Goal Selection (목표 있음 모드에서만) */}
       {hasGoal && (
         <>
           <div className="space-y-2">
@@ -73,8 +87,14 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
             <select
               value={selectedGoalId}
               onChange={(e) => {
-                setSelectedGoalId(e.target.value);
-                setSelectedWeekIndex(null);
+                const goalId = e.target.value;
+                setSelectedGoalId(goalId);
+                const goal = monthlyGoals.find(g => g.id === goalId);
+                if (goal && goalId) {
+                  setSelectedWeekIndex(calcWeekIndex(goal.startDate, date));
+                } else {
+                  setSelectedWeekIndex(null);
+                }
               }}
               className="w-full bg-gray-50 p-2 rounded-xl border border-gray-100 text-xs outline-none focus:border-primary transition-all"
             >
@@ -86,29 +106,18 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
               ))}
             </select>
           </div>
-
-          {/* Weekly Goal Selection (Conditional) */}
-          {selectedGoalId && weeklyGoalsOptions.length > 0 && (
+          {selectedGoalId && autoWeekLabel && (
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-gray-400 ml-1">주간 목표</label>
-              <select
-                value={selectedWeekIndex ?? ''}
-                onChange={(e) => setSelectedWeekIndex(e.target.value ? Number(e.target.value) : null)}
-                className="w-full bg-gray-50 p-2 rounded-xl border border-gray-100 text-xs outline-none focus:border-primary transition-all"
-              >
-                <option value="">주간 목표를 선택하세요 (선택사항)</option>
-                {weeklyGoalsOptions.map((weekGoal, idx) => (
-                  <option key={idx} value={idx}>
-                    {idx + 1}주차: {weekGoal}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full bg-gray-50 p-2 rounded-xl border border-gray-100 text-xs text-gray-600">
+                {autoWeekLabel}
+              </div>
             </div>
           )}
         </>
       )}
 
-      {/* Category Selection */}
+      {/* Category Selection (목표 없음 모드에서만) */}
       {!hasGoal && (
         <div className="space-y-2">
           <label className="text-[10px] font-bold text-gray-400 ml-1">관심 키워드</label>
@@ -117,11 +126,10 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
               <button
                 key={cat}
                 onClick={() => setNewTaskCategory(cat)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                  newTaskCategory === cat 
-                    ? 'bg-primary text-white' 
-                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                }`}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${newTaskCategory === cat
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                  }`}
               >
                 {cat}
               </button>
@@ -145,13 +153,13 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-2 pt-2">
-        <button 
+        <button
           onClick={cancelAddingTask}
           className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] font-bold rounded-lg hover:bg-gray-200 transition-all"
         >
           취소
         </button>
-        <button 
+        <button
           onClick={() => addTask(date)}
           disabled={!newTaskText.trim() || (hasGoal && !selectedGoalId)}
           className="px-3 py-1.5 bg-primary text-white text-[11px] font-bold rounded-lg shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
