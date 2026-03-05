@@ -16,8 +16,12 @@ export type { ApiResponse, ApiError } from './base';
 export { userService, userApi, friendsApi } from './user.service';
 
 // Schedule Service
-export { scheduleService, tasksApi } from './schedule.service';
-export type { CreateTaskRequest, UpdateTaskRequest } from './schedule.service';
+export { scheduleService } from './schedule.service';
+export type {
+  CreateTaskRequest, UpdateTaskRequest,
+  GoalApiResponse, GoalDetailApiResponse, BackendWeekGoal,
+  CreateGoalApiRequest, CreateWeekGoalApiRequest, WeekGoalApiResponse,
+} from './schedule.service';
 
 // Intelligence Service
 export { intelligenceService } from './intelligence.service';
