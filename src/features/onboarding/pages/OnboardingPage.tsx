@@ -162,11 +162,20 @@ export default function OnboardingPage() {
 
       console.log('[OnboardingPage] signup 응답 전체:', response);
       console.log('[OnboardingPage] signup 응답 타입:', typeof response);
+      console.log('[OnboardingPage] signup 응답 JSON:', JSON.stringify(response));
 
-      sessionStorage.removeItem('cognitoIdToken');
-
-      const authData = (response as any)?.data ?? response;
+      // base.ts post()가 이미 response.data.data를 언래핑해서 반환
+      const authData = response;
       console.log('[OnboardingPage] login에 넘길 데이터:', authData);
+
+      if (!authData || !authData.accessToken) {
+        console.error('[OnboardingPage] authData 없음 또는 accessToken 누락:', authData);
+        alert('회원가입 처리 중 오류가 발생했습니다. (서버 응답 없음)\n브라우저 콘솔 및 User-svc 서버 로그를 확인해주세요.');
+        return; // navigate 없이 return → cognitoIdToken 유지
+      }
+
+      // 성공 확정 후에만 sessionStorage 제거
+      sessionStorage.removeItem('cognitoIdToken');
 
       login(authData);
       navigate('/');
