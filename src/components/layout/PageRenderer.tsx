@@ -3,10 +3,11 @@ import { AnimatePresence } from 'motion/react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import HomePage from '../../features/home/pages/HomePage';
 import TodoPage from '../../features/tasks/pages/TodoPage';
-import FriendsPage from '../../features/friends/pages/FriendsPage';
+import { FriendsPage } from '../../features/friends/pages/FriendsPage';
 import AiTodoPage from '../../features/tasks/pages/AiTodoPage';
 import MyPage from '../../features/profile/pages/MyPage';
 import ReportPage from '../../features/report/pages/ReportPage';
+import CallbackPage from '../../features/auth/pages/CallbackPage';
 import { Task, ViewMode } from '../../types';
 
 interface PageRendererProps {
@@ -28,7 +29,6 @@ interface PageRendererProps {
   setSelectedKeywords: (kws: string[]) => void;
   isDeletingAccount: boolean;
   setIsDeletingAccount: (is: boolean) => void;
-  setIsStarted: (is: boolean) => void;
   KeywordChip: React.FC<any>;
   weeklyPerformance: any[];
   growthData: any[];
@@ -42,7 +42,7 @@ const PageRenderer: React.FC<PageRendererProps> = (props) => {
     nickname, setNickname, isEditingProfile,
     setIsEditingProfile, tempNickname, setTempNickname, keywords,
     tempKeywords, setTempKeywords, setSelectedKeywords, isDeletingAccount,
-    setIsDeletingAccount, setIsStarted, KeywordChip, weeklyPerformance,
+    setIsDeletingAccount, KeywordChip, weeklyPerformance,
     growthData
   } = props;
 
@@ -50,20 +50,21 @@ const PageRenderer: React.FC<PageRendererProps> = (props) => {
     <AnimatePresence mode="wait">
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route 
-          path="/home" 
+        <Route path="/auth/callback" element={<CallbackPage />} />
+        <Route
+          path="/home"
           element={
-            <HomePage 
+            <HomePage
               today={today}
               selectedKeywords={selectedKeywords}
               setActiveTab={(tab: string) => navigate(`/${tab === 'ai-todo' ? 'ai' : tab}`)}
             />
-          } 
+          }
         />
-        <Route 
-          path="/todo" 
+        <Route
+          path="/todo"
           element={
-            <TodoPage 
+            <TodoPage
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
               viewMode={viewMode}
@@ -71,53 +72,35 @@ const PageRenderer: React.FC<PageRendererProps> = (props) => {
               today={today}
               selectedKeywords={selectedKeywords}
             />
-          } 
+          }
         />
-        <Route 
-          path="/friends" 
+        <Route
+          path="/friends"
           element={
             <FriendsPage />
-          } 
+          }
         />
-        <Route 
-          path="/ai" 
+        <Route
+          path="/ai"
           element={
-            <AiTodoPage 
+            <AiTodoPage
               selectedKeywords={selectedKeywords}
             />
-          } 
+          }
         />
-        <Route 
-          path="/mypage" 
-          element={
-            <MyPage 
-              nickname={nickname}
-              setNickname={setNickname}
-              isEditingProfile={isEditingProfile}
-              setIsEditingProfile={setIsEditingProfile}
-              tempNickname={tempNickname}
-              setTempNickname={setTempNickname}
-              keywords={keywords}
-              tempKeywords={tempKeywords}
-              setTempKeywords={setTempKeywords}
-              selectedKeywords={selectedKeywords}
-              setSelectedKeywords={setSelectedKeywords}
-              isDeletingAccount={isDeletingAccount}
-              setIsDeletingAccount={setIsDeletingAccount}
-              setIsStarted={setIsStarted}
-              KeywordChip={KeywordChip}
-            />
-          } 
+        <Route
+          path="/mypage"
+          element={<MyPage />}
         />
-        <Route 
-          path="/report" 
+        <Route
+          path="/report"
           element={
-            <ReportPage 
+            <ReportPage
               selectedKeywords={selectedKeywords}
               weeklyPerformance={weeklyPerformance}
               growthData={growthData}
             />
-          } 
+          }
         />
       </Routes>
     </AnimatePresence>

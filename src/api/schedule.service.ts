@@ -78,8 +78,8 @@ class ScheduleService extends BaseApiService {
   async createTask(task: CreateTaskRequest): Promise<Task> {
     if (this.useMock) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      const newTask: Task = { 
-        ...task, 
+      const newTask: Task = {
+        ...task,
         id: Math.random().toString(36).substr(2, 9),
         completed: task.completed || false,
       };
@@ -121,7 +121,7 @@ class ScheduleService extends BaseApiService {
   async toggleTaskCompletion(taskId: string): Promise<Task> {
     if (this.useMock) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      mockTasks = mockTasks.map(t => 
+      mockTasks = mockTasks.map(t =>
         t.id === taskId ? { ...t, completed: !t.completed } : t
       );
       const updated = mockTasks.find(t => t.id === taskId);
@@ -139,11 +139,11 @@ class ScheduleService extends BaseApiService {
       await new Promise(resolve => setTimeout(resolve, 300));
       const task = mockTasks.find(t => t.id === taskId);
       if (!task) throw new Error('Task not found');
-      
+
       const date = new Date(task.date);
       date.setDate(date.getDate() + 1);
       const newDate = date.toISOString().split('T')[0];
-      
+
       return this.updateTask(taskId, { date: newDate });
     }
     return this.post<Task>(`/api/v1/tasks/${taskId}/postpone`);
@@ -168,8 +168,15 @@ class ScheduleService extends BaseApiService {
   async getFriendTasks(friendId: string, date?: string): Promise<Task[]> {
     if (this.useMock) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      // Mock: 친구의 할일은 빈 배열 반환
-      return [];
+      // Mock: 친구의 할일 샘플 데이터
+      const today = new Date().toISOString().split('T')[0];
+      return [
+        { id: 'f1', text: '아침 러닝 5km', date: today, completed: true, category: '운동' },
+        { id: 'f2', text: 'TypeScript 공부 1시간', date: today, completed: false, category: '개발' },
+        { id: 'f3', text: '영어 단어 50개 암기', date: today, completed: false, category: '학습' },
+        { id: 'f4', text: '독서 30분', date: today, completed: true, category: '자기계발' },
+        { id: 'f5', text: '명상 10분', date: today, completed: false, category: '건강' },
+      ];
     }
     const params = date ? { date } : undefined;
     return this.get<Task[]>(`/api/v1/tasks/friends/${friendId}`, { params });
