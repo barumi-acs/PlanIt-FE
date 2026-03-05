@@ -7,10 +7,21 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 /**
  * API 응답 공통 타입 (백엔드 표준 응답 형식)
+ * - 백엔드 ApiResponse 형식: { code, message, data, timestamp }
+ * - 레거시 형식도 지원: { success, data, message }
  */
 export interface ApiResponse<T = any> {
   code: string;       // e.g. "C2001"
   message: string;    // e.g. "성공"
+  data: T;
+  timestamp: string;
+}
+
+/**
+ * 레거시 API 응답 타입 (하위 호환성)
+ */
+export interface LegacyApiResponse<T = any> {
+  success: boolean;
   data: T;
   timestamp: string;
 }
@@ -68,9 +79,12 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
     (error) => {
       // 에러 처리 로직
       if (error.response?.status === 401) {
-        // 인증 실패 시 로그인 페이지로 리다이렉트 등
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
+        // ✅ auth 경로는 401이어도 리다이렉트 제외 (login, signup, check-withdrawn 등)
+        const isAuthPath = error.config?.url?.includes('/auth/');
+        if (!isAuthPath) {
+          localStorage.removeItem('accessToken');
+          window.location.href = '/login';
+        }
       }
       return Promise.reject(error);
     }
