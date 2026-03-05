@@ -9,16 +9,12 @@ import { useSearchUsers } from '../hooks/useSearchUsers';
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner';
 import { Users, UserPlus, UserMinus, Check, X, Search } from 'lucide-react';
 import { Friend } from '../../../api/user.service';
-import { scheduleService } from '../../../api/schedule.service';
-import { Task } from '../../../types';
 import FriendTodoView from '../components/FriendTodoView';
 
 export const FriendsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
-  const [friendTasks, setFriendTasks] = useState<Task[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
   const [reactionTaskId, setReactionTaskId] = useState<string | null>(null);
 
   const { data: friendsData, isLoading: friendsLoading, refetch: refetchFriends } = useFriends(currentPage, 20);
@@ -75,21 +71,9 @@ export const FriendsPage: React.FC = () => {
     }
   };
 
-  // 친구 선택 시 투두리스트 로드
-  const handleSelectFriend = async (friend: Friend) => {
+  // 친구 선택 (FriendTodoView에서 자체적으로 tasks 로드)
+  const handleSelectFriend = (friend: Friend) => {
     setSelectedFriend(friend);
-    setLoadingTasks(true);
-    try {
-      // 오늘 날짜로 친구의 투두리스트 조회
-      const today = new Date().toISOString().split('T')[0];
-      const tasks = await scheduleService.getFriendTasks(friend.userId, today);
-      setFriendTasks(tasks);
-    } catch (error) {
-      console.error('친구 투두리스트 로드 실패:', error);
-      setFriendTasks([]);
-    } finally {
-      setLoadingTasks(false);
-    }
   };
 
   if (friendsLoading || requestsLoading) {
@@ -103,28 +87,21 @@ export const FriendsPage: React.FC = () => {
         {selectedFriend && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-              {loadingTasks ? (
-                <div className="flex justify-center items-center py-20">
-                  <LoadingSpinner />
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto p-6">
-                  <FriendTodoView
-                    friend={{
-                      id: selectedFriend.userId,
-                      nickname: selectedFriend.nickname,
-                      tasks: friendTasks,
-                    }}
-                    onBack={() => {
-                      setSelectedFriend(null);
-                      setFriendTasks([]);
-                      setReactionTaskId(null);
-                    }}
-                    reactionTaskId={reactionTaskId}
-                    setReactionTaskId={setReactionTaskId}
-                  />
-                </div>
-              )}
+              <div className="flex-1 overflow-y-auto p-6">
+                <FriendTodoView
+                  friend={{
+                    id: selectedFriend.userId,
+                    nickname: selectedFriend.nickname,
+                    tasks: [],
+                  }}
+                  onBack={() => {
+                    setSelectedFriend(null);
+                    setReactionTaskId(null);
+                  }}
+                  reactionTaskId={reactionTaskId}
+                  setReactionTaskId={setReactionTaskId}
+                />
+              </div>
             </div>
           </div>
         )}

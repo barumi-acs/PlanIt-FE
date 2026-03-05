@@ -16,7 +16,7 @@ export type { ApiResponse, ApiError, LegacyApiResponse } from './base';
 export { userService, userApi, friendsApi } from './user.service';
 
 // Schedule Service
-export { scheduleService, tasksApi } from './schedule.service';
+export { scheduleService } from './schedule.service';
 export type {
   CreateTaskRequest,
   UpdateTaskRequest,
