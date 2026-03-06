@@ -45,3 +45,7 @@ export type {
   FeedbackDashboard,
   DailyCheerFeedback,
 } from './insight.service';
+
+// Strategy Service
+export { strategyService } from './strategy.service';
+export type { GeneratePlanRequest } from './strategy.service';
