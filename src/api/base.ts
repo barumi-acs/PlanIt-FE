@@ -83,7 +83,7 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
         const isAuthPath = error.config?.url?.includes('/auth/');
         if (!isAuthPath) {
           localStorage.removeItem('accessToken');
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       }
       return Promise.reject(error);
