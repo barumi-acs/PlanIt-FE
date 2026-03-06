@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Calendar as CalendarIcon, Check } from 'lucide-react';
 
 import { useTasksContext } from '../context/TasksContext';
 import { useAiPlan } from '../hooks/useAiPlan';
+import AiPlanPreview from '../components/AiPlanPreview';
+import { TrendRecommendations } from '../components/TrendRecommendations';
 
 interface AiTodoPageProps {
   selectedKeywords: string[];
@@ -22,10 +24,22 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
     aiPrompt,
     setAiPrompt,
     generateAiPlan,
+    savePlan,
     isAiGenerating,
+    isSaving,
     aiGeneratedTasks,
+    planData,
     addAiTasksToMyList,
   } = ai;
+
+  const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleGoalClick = (goalTitle: string) => {
+    setAiPrompt(goalTitle);
+    // Focus the prompt textarea after populating
+    promptTextareaRef.current?.focus();
+  };
+
   return (
     <motion.div
       key="ai-todo"
@@ -48,8 +62,8 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
               <label className="text-[10px] font-bold text-gray-400 ml-1">시작일</label>
               <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
                 <CalendarIcon size={12} className="text-gray-400" />
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={aiStartDate}
                   onChange={(e) => setAiStartDate(e.target.value)}
                   className="bg-transparent border-none outline-none text-[10px] font-bold text-gray-600 w-full"
@@ -60,8 +74,8 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
               <label className="text-[10px] font-bold text-gray-400 ml-1">종료일</label>
               <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
                 <CalendarIcon size={12} className="text-gray-400" />
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={aiEndDate}
                   onChange={(e) => setAiEndDate(e.target.value)}
                   className="bg-transparent border-none outline-none text-[10px] font-bold text-gray-600 w-full"
@@ -72,13 +86,14 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
 
           {/* Prompt Input */}
           <div className="relative">
-            <textarea 
+            <textarea
+              ref={promptTextareaRef}
               placeholder="목표를 입력하세요 (예: 한 달 만에 5kg 감량)"
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               className="w-full h-24 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xs font-medium outline-none focus:border-primary/30 transition-all resize-none placeholder:text-gray-300"
             />
-            <button 
+            <button
               onClick={generateAiPlan}
               disabled={isAiGenerating || !aiPrompt}
               className="absolute bottom-3 right-3 px-4 py-2 bg-primary text-white text-[11px] font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-50"
@@ -87,23 +102,12 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
             </button>
           </div>
 
-          {/* Trend Keywords */}
-          <div className="flex flex-wrap gap-2">
-            {['5kg 감량', '아침 독서', '코딩 마스터', '미라클 모닝', '매일 만보'].map(tag => (
-              <button 
-                key={tag}
-                onClick={() => setAiPrompt(tag)}
-                className="px-3 py-1.5 bg-white border border-gray-100 text-[10px] font-bold text-gray-500 rounded-lg hover:border-primary/30 hover:text-primary transition-all"
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
+
 
           {/* Generated Preview */}
           <AnimatePresence>
             {aiGeneratedTasks.length > 0 && (
-              <motion.div 
+              <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -119,7 +123,7 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
                       </div>
                     ))}
                   </div>
-                  <button 
+                  <button
                     onClick={addAiTasksToMyList}
                     className="w-full py-3 bg-primary/10 text-primary text-[11px] font-bold rounded-xl mt-2 hover:bg-primary hover:text-white transition-all"
                   >
@@ -131,6 +135,18 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
           </AnimatePresence>
         </div>
       </div>
+
+      {/* AI Plan Preview */}
+      {planData && (
+        <AiPlanPreview
+          planData={planData}
+          onAddTasks={savePlan}
+          isSaving={isSaving}
+        />
+      )}
+
+      {/* Trend Recommendations - Separate Section */}
+      <TrendRecommendations setAiPrompt={handleGoalClick} />
     </motion.div>
   );
 };
