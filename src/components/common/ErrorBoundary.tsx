@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import ErrorPage from './ErrorPage';
 
 interface Props {
@@ -40,7 +40,7 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 에러 로깅 서비스로 전송 (예: Sentry)
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     // 부모 컴포넌트에서 제공한 에러 핸들러 호출
     if (this.props.onError) {
       this.props.onError(error, errorInfo);

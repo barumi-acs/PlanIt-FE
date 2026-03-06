@@ -1,26 +1,121 @@
-import { useState } from 'react';
-import { Task, MonthlyGoal } from '../../../types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Task, MonthlyGoal } from '../types';
+import {
+  scheduleService,
+  DailyTaskItem,
+  TaskEmojiGroupResponse,
+  GoalDetailApiResponse,
+} from '../../../api/schedule.service';
+
+/** categoryListId → 카테고리 이름 (data.sql category_list 기준) */
+const CATEGORY_LIST_MAP: Record<number, string> = {
+  1: '직무/커리어',
+  2: '어학/자격증',
+  3: '독서/학습',
+  4: '건강/운동',
+  5: '재테크/경제',
+  6: '마인드/루틴',
+  7: '취미/관계',
+  8: '기타',
+};
+
+/** 카테고리 이름 → categoryListId 역매핑 */
+const CATEGORY_NAME_TO_ID: Record<string, string> = Object.entries(CATEGORY_LIST_MAP)
+  .reduce((acc, [id, name]) => ({ ...acc, [name]: id }), {} as Record<string, string>);
+
+// ── 백엔드 타입 → 프론트엔드 Task 변환 ──────────────────────────────────────
+const mapBackendTask = (item: DailyTaskItem): Task => ({
+  id: item.taskId.toString(),       // UI는 string id 사용
+  taskId: item.taskId,              // 실제 백엔드 PK 보관
+  text: item.content,
+  date: item.targetDate,
+  completed: item.complete,
+  category: item.category || item.weekGoalsTitle || '기타',
+  // goalId를 weekGoalsId로 매핑하지 않음:
+  // monthlyGoals.id = goalsId 이고 weekGoalsId != goalsId 이므로
+  // 잘못된 매핑 시 tasksWithGoal에 들어가 goal이 null로 렌더링 스킵됨
+  weekGoalsId: item.weekGoalsId,
+});
 
 export const useTasks = (selectedKeywords: string[]) => {
   const today = new Date().toISOString().split('T')[0];
-  const [tasks, setTasks] = useState<Task[]>([
-    // 목표 없는 할 일들
-    { id: '1', text: '아침 조깅 30분', date: today, completed: false, category: '운동' },
-    { id: '2', text: '경제 뉴스 읽기', date: today, completed: true, category: '투자' },
-    { id: '3', text: '명상 10분', date: today, completed: true, category: '마인드 컨트롤' },
-    
-    // 목표와 연결된 할 일들
-    { id: '4', text: '아침 조깅 루틴 완성하기', date: today, completed: false, category: '운동', goalId: 'goal1', weekIndex: 0 },
-    { id: '5', text: '스쿼트 3세트 하기', date: today, completed: false, category: '운동', goalId: 'goal1', weekIndex: 1 },
-    { id: '6', text: 'React Hooks 문서 읽기', date: today, completed: true, category: '코딩', goalId: 'goal2', weekIndex: 0 },
-    { id: '7', text: 'useState 예제 코드 작성', date: today, completed: false, category: '코딩', goalId: 'goal2', weekIndex: 1 },
-    { id: '8', text: '영어 회화 표현 20개 암기', date: today, completed: false, category: '언어', goalId: 'goal3', weekIndex: 0 },
-    
-    // 추가 목표 없는 할 일들
-    { id: '9', text: '독서 30분', date: today, completed: true, category: '독서' },
-    { id: '10', text: '물 2L 마시기', date: today, completed: true, category: '운동' },
-    { id: '11', text: '비타민 챙겨먹기', date: today, completed: true, category: '운동' },
-  ]);
+  const [currentDate, setCurrentDate] = useState(today);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const tasksRef = useRef<Task[]>([]); // 항상 최신 tasks 참조용
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [reactionsMap, setReactionsMap] = useState<Record<number, TaskEmojiGroupResponse[]>>({});
+
+  // ── 날짜별 할 일 API 조회 ──────────────────────────────────────────────
+  const loadTasks = useCallback(async (date: string) => {
+    setIsLoading(true);
+    try {
+      const response = await scheduleService.getDailyTasks(date);
+      const backendTasks = response.tasks.map(mapBackendTask);
+      // 로컬에서만 추가된 tasks(taskId 없는 것)를 merge하여 유지
+      setTasks(prev => {
+        const localOnly = prev.filter(t => t.taskId === undefined && t.date === date);
+        return [...backendTasks, ...localOnly];
+      });
+      // 이모지 반응 병렬 로드
+      const numericTasks = backendTasks.filter(t => t.taskId !== undefined);
+      if (numericTasks.length > 0) {
+        const results = await Promise.allSettled(
+          numericTasks.map(t => scheduleService.getTaskReactions(t.taskId!))
+        );
+        const newMap: Record<number, TaskEmojiGroupResponse[]> = {};
+        results.forEach((result, i) => {
+          if (result.status === 'fulfilled') {
+            newMap[numericTasks[i].taskId!] = result.value.reactions;
+          }
+        });
+        setReactionsMap(newMap);
+      }
+    } catch (err) {
+      console.error('[useTasks] 할 일 조회 실패:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentDate) {
+      loadTasks(currentDate);
+    }
+  }, [currentDate, loadTasks]);
+
+  // ── 목표 API 조회 ────────────────────────────────────────────────────────────
+  const loadGoals = useCallback(async () => {
+    try {
+      const goals = await scheduleService.getGoals();
+      const details = await Promise.allSettled(
+        goals.map(g => scheduleService.getGoalDetail(g.goalsId))
+      );
+      const mapped: MonthlyGoal[] = goals.map((g, i) => {
+        const detail = details[i].status === 'fulfilled'
+          ? (details[i] as PromiseFulfilledResult<GoalDetailApiResponse>).value
+          : null;
+        return {
+          id: g.goalsId.toString(),
+          goalsId: g.goalsId,
+          title: g.title,
+          category: CATEGORY_LIST_MAP[g.categoryId ?? 8] ?? '기타',
+          startDate: g.startDate,
+          endDate: g.endDate,
+          weeklyGoals: detail?.weekGoals.map(wg => wg.title) ?? [],
+          backendWeekGoals: detail?.weekGoals ?? [],
+          progressRate: detail?.progressRate ?? 0,
+        };
+      });
+      setMonthlyGoals(mapped);
+    } catch (err) {
+      console.error('[useTasks] 목표 조회 실패:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGoals();
+  }, [loadGoals]);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [newTaskText, setNewTaskText] = useState('');
@@ -34,46 +129,7 @@ export const useTasks = (selectedKeywords: string[]) => {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
 
   // Monthly Goal states
-  const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>([
-    {
-      id: 'goal1',
-      title: '건강한 생활 습관 만들기',
-      category: '운동',
-      startDate: '2026-02-01',
-      endDate: '2026-02-28',
-      weeklyGoals: [
-        '매일 아침 30분 조깅하기',
-        '주 3회 근력 운동 추가하기',
-        '식단 관리 시작하기',
-        '수면 패턴 개선하기'
-      ]
-    },
-    {
-      id: 'goal2',
-      title: 'React 마스터하기',
-      category: '코딩',
-      startDate: '2026-02-10',
-      endDate: '2026-03-09',
-      weeklyGoals: [
-        'React 기초 문법 복습',
-        'Hooks 심화 학습',
-        '상태 관리 라이브러리 학습',
-        '프로젝트 완성하기'
-      ]
-    },
-    {
-      id: 'goal3',
-      title: '영어 회화 실력 향상',
-      category: '언어',
-      startDate: '2026-02-15',
-      endDate: '2026-03-07',
-      weeklyGoals: [
-        '기본 회화 표현 100개 암기',
-        '원어민과 대화 연습 시작',
-        '영어 드라마 시청하기'
-      ]
-    }
-  ]);
+  const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>([]);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalCategory, setNewGoalCategory] = useState('');
@@ -81,35 +137,73 @@ export const useTasks = (selectedKeywords: string[]) => {
   const [newGoalEndDate, setNewGoalEndDate] = useState('');
   const [newGoalWeeklyGoals, setNewGoalWeeklyGoals] = useState<string[]>([]);
 
-  const addTask = (date: string) => {
+  const addTask = async (date: string) => {
     if (!newTaskText.trim()) {
       setIsAddingTask(false);
       return;
     }
-    
-    // If goal is selected, use goal's category
+
     let taskCategory = newTaskCategory || selectedKeywords[0] || '기타';
-    if (hasGoal && selectedGoalId) {
-      const goal = monthlyGoals.find(g => g.id === selectedGoalId);
-      if (goal) {
-        taskCategory = goal.category;
+
+    // 선택된 목표의 backendWeekGoals에서 weekGoalsId 조회
+    const selectedGoal = monthlyGoals.find(g => g.id === selectedGoalId);
+    const weekGoalsId = (
+      hasGoal && selectedGoal && selectedWeekIndex !== null &&
+      selectedGoal.backendWeekGoals &&
+      selectedGoal.backendWeekGoals.length > selectedWeekIndex
+    ) ? selectedGoal.backendWeekGoals[selectedWeekIndex].weekGoalsId : undefined;
+
+    if (hasGoal && weekGoalsId !== undefined) {
+      // ── 목표 있음 + 주간목표ID 확인됨 → 백엔드 저장
+      try {
+        await scheduleService.createTask({
+          weekGoalsId,
+          content: newTaskText,
+          targetDate: date,
+        });
+        await loadTasks(date);
+        await loadGoals(); // 진행률 갱신
+      } catch (err) {
+        console.error('[useTasks] 할 일 생성 실패:', err);
       }
-    }
-    
-    const newTask: Task = {
-      id: Math.random().toString(36).substr(2, 9),
-      text: newTaskText,
-      date: date,
-      completed: false,
-      category: taskCategory,
-      ...(hasGoal && selectedGoalId && { 
+    } else if (!hasGoal) {
+      // ── 목표 없음 → 백엔드 저장 (weekGoalsId: null, category는 키워드 또는 기타)
+      try {
+        await scheduleService.createTask({
+          weekGoalsId: null,
+          category: taskCategory,
+          content: newTaskText,
+          targetDate: date,
+        });
+        await loadTasks(date);
+      } catch (err) {
+        console.error('[useTasks] 할 일 생성 실패:', err);
+        // API 실패 시 로컬 fallback
+        const newTask: Task = {
+          id: Math.random().toString(36).substr(2, 9),
+          text: newTaskText,
+          date: date,
+          completed: false,
+          category: taskCategory,
+        };
+        setTasks(prev => [...prev, newTask]);
+      }
+    } else {
+      // ── 목표 선택했지만 backendWeekGoals 미확인 (로컬 목표 fallback)
+      if (selectedGoal) taskCategory = selectedGoal.category;
+      const newTask: Task = {
+        id: Math.random().toString(36).substr(2, 9),
+        text: newTaskText,
+        date: date,
+        completed: false,
+        category: taskCategory,
         goalId: selectedGoalId,
-        weekIndex: selectedWeekIndex ?? undefined
-      })
-    };
-    setTasks([...tasks, newTask]);
-    
-    // Reset all task states
+        weekIndex: selectedWeekIndex ?? undefined,
+      };
+      setTasks(prev => [...prev, newTask]);
+    }
+
+    // 입력 상태 초기화
     setNewTaskText('');
     setNewTaskCategory('');
     setHasGoal(false);
@@ -127,30 +221,75 @@ export const useTasks = (selectedKeywords: string[]) => {
     setIsAddingTask(false);
   };
 
-  const updateTask = (id: string, newText: string) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, text: newText } : t));
+  // ── CRUD API 연동 ─────────────────────────────────────────────────────────
+
+  const updateTask = async (id: string, newText: string) => {
+    const numericId = parseInt(id);
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, text: newText } : t));
     setEditingTaskId(null);
-  };
-
-  const deleteTask = (id: string) => {
-    setTasks(tasks.filter(t => t.id !== id));
-    setActiveMenuId(null);
-  };
-
-  const toggleComplete = (id: string) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
-
-  const postponeTask = (id: string) => {
-    setTasks(tasks.map(t => {
-      if (t.id === id) {
-        const date = new Date(t.date);
-        date.setDate(date.getDate() + 1);
-        return { ...t, date: date.toISOString().split('T')[0] };
+    if (!isNaN(numericId)) {
+      try {
+        await scheduleService.updateTask(numericId, { content: newText });
+      } catch (err) {
+        console.error('[useTasks] 할 일 수정 실패:', err);
+        // Rollback
+        await loadTasks(currentDate);
       }
-      return t;
-    }));
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    const numericId = parseInt(id);
+    // Optimistic update
+    setTasks(prev => prev.filter(t => t.id !== id));
     setActiveMenuId(null);
+    if (!isNaN(numericId)) {
+      try {
+        await scheduleService.deleteTask(numericId);
+      } catch (err) {
+        console.error('[useTasks] 할 일 삭제 실패:', err);
+        await loadTasks(currentDate);
+      }
+    }
+  };
+
+  const toggleComplete = async (id: string) => {
+    const numericId = parseInt(id);
+    // Optimistic update (즉시 UI 반영)
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    if (!isNaN(numericId)) {
+      try {
+        await scheduleService.toggleTaskCompletion(numericId);
+      } catch (err) {
+        console.error('[useTasks] 완료 토글 실패:', err);
+        // Rollback
+        setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+      }
+    }
+  };
+
+  const postponeTask = async (id: string) => {
+    const numericId = parseInt(id);
+    setActiveMenuId(null);
+    if (!isNaN(numericId)) {
+      try {
+        await scheduleService.postponeTask(numericId);
+        await loadTasks(currentDate); // 날짜가 바뀌므로 다시 불러옴
+      } catch (err) {
+        console.error('[useTasks] 미루기 실패:', err);
+      }
+    } else {
+      // Mock fallback
+      setTasks(prev => prev.map(t => {
+        if (t.id === id) {
+          const d = new Date(t.date);
+          d.setDate(d.getDate() + 1);
+          return { ...t, date: d.toISOString().split('T')[0] };
+        }
+        return t;
+      }));
+    }
   };
 
   const calculateWeeks = (startDate: string, endDate: string): number => {
@@ -162,23 +301,46 @@ export const useTasks = (selectedKeywords: string[]) => {
     return Math.max(0, Math.ceil(diffDays / 7));
   };
 
-  const addMonthlyGoal = () => {
+  const addMonthlyGoal = async () => {
     if (!newGoalTitle.trim() || !newGoalStartDate || !newGoalEndDate) {
       setIsAddingGoal(false);
       return;
     }
 
-    const newGoal: MonthlyGoal = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: newGoalTitle,
-      category: newGoalCategory || selectedKeywords[0] || '기타',
-      startDate: newGoalStartDate,
-      endDate: newGoalEndDate,
-      weeklyGoals: newGoalWeeklyGoals.filter(g => g.trim())
-    };
-    setMonthlyGoals([...monthlyGoals, newGoal]);
-    
-    // Reset all states
+    const cat = newGoalCategory || selectedKeywords[0] || '기타';
+    // DB category_list.name 으로 변환 (BE는 이름으로 조회)
+    // CATEGORY_NAME_TO_ID에 없는 키워드(예: '운동')는 '기타'로 fallback
+    const dbCategoryNames = Object.values(CATEGORY_LIST_MAP);
+    const dbCatName = dbCategoryNames.includes(cat) ? cat : '기타';
+    const validWeeklyGoals = newGoalWeeklyGoals.filter(g => g.trim());
+
+    try {
+      const created = await scheduleService.createGoal({
+        category: dbCatName,
+        title: newGoalTitle,
+        startDate: newGoalStartDate,
+        endDate: newGoalEndDate,
+      });
+      // 주차별 목표 등록 (병렬)
+      await Promise.all(
+        validWeeklyGoals.map(title => scheduleService.createWeekGoal(created.goalsId, { title }))
+      );
+      await loadGoals(); // 최신 목표 + 진행률 반영
+    } catch (err) {
+      console.error('[useTasks] 목표 생성 실패:', err);
+      // API 실패 시 로컬 fallback
+      const newGoal: MonthlyGoal = {
+        id: Math.random().toString(36).substr(2, 9),
+        title: newGoalTitle,
+        category: cat,
+        startDate: newGoalStartDate,
+        endDate: newGoalEndDate,
+        weeklyGoals: validWeeklyGoals,
+      };
+      setMonthlyGoals(prev => [...prev, newGoal]);
+    }
+
+    // Reset states
     setNewGoalTitle('');
     setNewGoalCategory('');
     setNewGoalStartDate('');
@@ -196,25 +358,49 @@ export const useTasks = (selectedKeywords: string[]) => {
     setIsAddingGoal(false);
   };
 
-  // Calculate goal progress
+  // 이모지 반응만 재조회 (탭 전환 후 최신화)
+  const refreshReactions = useCallback(async () => {
+    const numericTasks = tasksRef.current.filter(t => t.taskId !== undefined);
+    if (numericTasks.length === 0) return;
+    const results = await Promise.allSettled(
+      numericTasks.map(t => scheduleService.getTaskReactions(t.taskId!))
+    );
+    setReactionsMap(prev => {
+      const newMap = { ...prev };
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled') {
+          newMap[numericTasks[i].taskId!] = result.value.reactions;
+        }
+      });
+      return newMap;
+    });
+  }, []); // tasksRef는 ref이므로 의존성 불필요
+
+  // Calculate goal progress (백엔드 weekGoalsId 기반)
   const calculateGoalProgress = (goalId: string): number => {
-    const goalTasks = tasks.filter(t => t.goalId === goalId);
+    const goal = monthlyGoals.find(g => g.id === goalId);
+    if (!goal || !goal.backendWeekGoals?.length) return 0;
+    const weekGoalsIds = new Set(goal.backendWeekGoals.map(wg => wg.weekGoalsId));
+    const goalTasks = tasks.filter(t => t.weekGoalsId != null && weekGoalsIds.has(t.weekGoalsId));
     if (goalTasks.length === 0) return 0;
-    const completedTasks = goalTasks.filter(t => t.completed).length;
-    return Math.round((completedTasks / goalTasks.length) * 100);
+    return Math.round((goalTasks.filter(t => t.completed).length / goalTasks.length) * 100);
   };
 
-  // Calculate weekly progress for a specific goal and week
+  // Calculate weekly progress for a specific goal and week (백엔드 weekGoalsId 기반)
   const calculateWeeklyProgress = (goalId: string, weekIndex: number): number => {
-    const weekTasks = tasks.filter(t => t.goalId === goalId && t.weekIndex === weekIndex);
+    const goal = monthlyGoals.find(g => g.id === goalId);
+    const weekGoal = goal?.backendWeekGoals?.[weekIndex];
+    if (!weekGoal) return 0;
+    const weekTasks = tasks.filter(t => t.weekGoalsId === weekGoal.weekGoalsId);
     if (weekTasks.length === 0) return 0;
-    const completedTasks = weekTasks.filter(t => t.completed).length;
-    return Math.round((completedTasks / weekTasks.length) * 100);
+    return Math.round((weekTasks.filter(t => t.completed).length / weekTasks.length) * 100);
   };
 
   return {
     tasks,
     setTasks,
+    isLoading,
+    reactionsMap,
     editingTaskId,
     setEditingTaskId,
     newTaskText,
@@ -256,6 +442,10 @@ export const useTasks = (selectedKeywords: string[]) => {
     calculateWeeks,
     addMonthlyGoal,
     cancelAddingGoal,
+    loadTasks,
+    loadGoals,
+    refreshReactions,
+    setCurrentDate,
     calculateGoalProgress,
     calculateWeeklyProgress
   };

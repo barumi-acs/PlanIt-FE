@@ -1,10 +1,13 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useTasks } from '../hooks/useTasks';
-import { Task, MonthlyGoal } from '../../../types';
+import { Task, MonthlyGoal } from '../types';
+import { TaskEmojiGroupResponse } from '../../../api/schedule.service';
 
 interface TasksContextType {
   tasks: Task[];
   setTasks: (tasks: Task[]) => void;
+  isLoading: boolean;
+  reactionsMap: Record<number, TaskEmojiGroupResponse[]>;
   editingTaskId: string | null;
   setEditingTaskId: (id: string | null) => void;
   newTaskText: string;
@@ -44,10 +47,14 @@ interface TasksContextType {
   newGoalWeeklyGoals: string[];
   setNewGoalWeeklyGoals: (goals: string[]) => void;
   calculateWeeks: (startDate: string, endDate: string) => number;
-  addMonthlyGoal: () => void;
+  addMonthlyGoal: () => Promise<void>;
   cancelAddingGoal: () => void;
   calculateGoalProgress: (goalId: string) => number;
   calculateWeeklyProgress: (goalId: string, weekIndex: number) => number;
+  setCurrentDate: (date: string) => void;
+  loadTasks: (date: string) => Promise<void>;
+  loadGoals: () => Promise<void>;
+  refreshReactions: () => Promise<void>;
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);

@@ -6,31 +6,42 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 /**
- * API 응답 공통 타입
+ * API 응답 공통 타입 (백엔드 표준 응답 형식)
+ * - 백엔드 ApiResponse 형식: { code, message, data, timestamp }
+ * - 레거시 형식도 지원: { success, data, message }
  */
 export interface ApiResponse<T = any> {
+  code: string;       // e.g. "C2001"
+  message: string;    // e.g. "성공"
+  data: T;
+  timestamp: string;
+}
+
+/**
+ * 레거시 API 응답 타입 (하위 호환성)
+ */
+export interface LegacyApiResponse<T = any> {
   success: boolean;
   data: T;
-  message?: string;
+  timestamp: string;
 }
 
 /**
  * API 에러 응답 타입
  */
 export interface ApiError {
-  success: false;
+  code: string;
   message: string;
-  code?: string;
 }
 
 /**
  * 서비스별 Base URL 설정
  */
 export const SERVICE_URLS = {
-  USER: import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:3001',
-  SCHEDULE: import.meta.env.VITE_SCHEDULE_SERVICE_URL || 'http://localhost:3002',
-  INTELLIGENCE: import.meta.env.VITE_INTELLIGENCE_SERVICE_URL || 'http://localhost:3003',
-  INSIGHT: import.meta.env.VITE_INSIGHT_SERVICE_URL || 'http://localhost:3004',
+  USER: import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:8081',
+  SCHEDULE: import.meta.env.VITE_SCHEDULE_SERVICE_URL || 'http://localhost:8082',
+  INTELLIGENCE: import.meta.env.VITE_INTELLIGENCE_SERVICE_URL || 'http://localhost:8083',
+  INSIGHT: import.meta.env.VITE_INSIGHT_SERVICE_URL || 'http://localhost:8084',
 } as const;
 
 /**
@@ -68,9 +79,12 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
     (error) => {
       // 에러 처리 로직
       if (error.response?.status === 401) {
-        // 인증 실패 시 로그인 페이지로 리다이렉트 등
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
+        // ✅ auth 경로는 401이어도 리다이렉트 제외 (login, signup, check-withdrawn 등)
+        const isAuthPath = error.config?.url?.includes('/auth/');
+        if (!isAuthPath) {
+          localStorage.removeItem('accessToken');
+          window.location.href = '/';
+        }
       }
       return Promise.reject(error);
     }
@@ -93,7 +107,7 @@ export const apiClients = {
  * 공통 API 호출 헬퍼 함수
  */
 export class BaseApiService {
-  constructor(protected client: AxiosInstance) {}
+  constructor(protected client: AxiosInstance) { }
 
   protected async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.client.get<ApiResponse<T>>(url, config);

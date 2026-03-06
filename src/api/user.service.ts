@@ -4,150 +4,192 @@
  */
 
 import { BaseApiService, apiClients } from './base';
-import { UserProfile, Friend, FriendRequest } from '../types';
 
-// Mock 데이터 (개발용)
-let mockUser: UserProfile = {
-  id: '1',
-  nickname: '',
-  keywords: [],
-  email: 'user@example.com'
-};
+// Types
+export interface Category {
+  categoryId: number;
+  name: string;
+  colorHex: string;
+  description: string;
+}
 
-let mockFriends: Friend[] = [
-  { id: 'f1', nickname: '김철수', tasks: [] },
-  { id: 'f2', nickname: '이영희', tasks: [] },
-];
+export interface UserProfile {
+  userId: string;
+  nickname: string;
+  email: string;
+  interests: Category[];
+}
 
-let mockRequests: FriendRequest[] = [
-  { id: 'r1', nickname: '박지민' },
-];
+export interface SignupRequest {
+  nickname: string;
+  email: string;
+  cognitoIdToken: string;
+  agreedTermIds: number[];
+  interestCategoryIds: number[];
+  isRetentionAgreed: boolean;
+}
+
+export interface LoginRequest {
+  cognitoIdToken: string;
+}
+
+export interface AuthResponse {
+  userId: string;
+  nickname: string;
+  email: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+// ✅ 추가
+export interface CheckWithdrawnRequest {
+  cognitoIdToken: string;
+}
+
+// ✅ 추가
+export interface CheckWithdrawnResponse {
+  isRestricted: boolean;
+  availableAt?: string; // 재가입 가능일 (90일 이내일 때만)
+}
+
+export interface UpdateProfileRequest {
+  nickname: string;
+  interestCategoryIds: number[];
+}
+
+export interface Friend {
+  friendshipId: number;
+  userId: string;
+  nickname: string;
+  email: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface FriendRequest {
+  friendshipId: number;
+  userId: string;
+  nickname: string;
+  email: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ProcessFriendRequestRequest {
+  friendshipId: number;
+  status: 'ACCEPTED' | 'REJECTED';
+}
+
+export interface Term {
+  termId: number;
+  title: string;
+  content: string;
+  version: string;
+  isRequired: boolean;
+  type: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
 
 /**
  * User Service API
- * 사용자 프로필, 친구 관리 등을 담당
+ * 사용자 인증, 프로필, 친구 관리 등을 담당
  */
 class UserService extends BaseApiService {
-  // Mock 모드 여부 (개발 환경에서는 true)
-  private useMock = import.meta.env.DEV;
-
   constructor() {
     super(apiClients.user);
   }
 
-  /**
-   * 사용자 프로필 조회
-   */
+  // ========== 인증 API ==========
+
+  async signup(request: SignupRequest): Promise<AuthResponse> {
+    return this.post<AuthResponse>('/api/v1/users/auth/signup', request);
+  }
+
+  async login(request: LoginRequest): Promise<AuthResponse> {
+    return this.post<AuthResponse>('/api/v1/users/auth/login', request);
+  }
+
+  // ✅ 추가 - 탈퇴 유저 90일 재가입 제한 체크
+  async checkWithdrawn(request: CheckWithdrawnRequest): Promise<CheckWithdrawnResponse> {
+    return this.post<CheckWithdrawnResponse>('/api/v1/users/auth/check-withdrawn', request);
+  }
+
+  async withdraw(): Promise<void> {
+    return this.delete<void>('/api/v1/users/auth/withdraw');
+  }
+
+  // ========== 프로필 API ==========
+
   async getProfile(): Promise<UserProfile> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return mockUser;
-    }
-    return this.get<UserProfile>('/api/v1/profile');
+    return this.get<UserProfile>('/api/v1/users/profile');
   }
 
-  /**
-   * 사용자 프로필 수정
-   */
-  async updateProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      mockUser = { ...mockUser, ...updates };
-      return mockUser;
-    }
-    return this.patch<UserProfile>('/api/v1/profile', updates);
+  async updateProfile(request: UpdateProfileRequest): Promise<UserProfile> {
+    return this.put<UserProfile>('/api/v1/users/profile', request);
   }
 
-  /**
-   * 친구 목록 조회
-   */
-  async getFriends(): Promise<Friend[]> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return mockFriends;
-    }
-    return this.get<Friend[]>('/api/v1/friends');
+  async searchUsers(nickname: string): Promise<UserProfile[]> {
+    return this.get<UserProfile[]>('/api/v1/users/search', { params: { nickname } });
   }
 
-  /**
-   * 친구 요청 목록 조회
-   */
-  async getFriendRequests(): Promise<FriendRequest[]> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return mockRequests;
-    }
-    return this.get<FriendRequest[]>('/api/v1/friends/requests');
+  // ========== 친구 API ==========
+
+  async sendFriendRequest(targetUserId: string): Promise<void> {
+    return this.post<void>('/api/v1/users/friends/requests/send', { targetUserId });
   }
 
-  /**
-   * 친구 요청 수락
-   */
-  async acceptFriendRequest(requestId: string): Promise<void> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const req = mockRequests.find(r => r.id === requestId);
-      if (req) {
-        mockFriends.push({ id: req.id, nickname: req.nickname, tasks: [] });
-        mockRequests = mockRequests.filter(r => r.id !== requestId);
-      }
-      return;
-    }
-    return this.post<void>(`/api/v1/friends/requests/${requestId}/accept`);
+  async processFriendRequest(request: ProcessFriendRequestRequest): Promise<void> {
+    return this.post<void>('/api/v1/users/friends/requests', request);
   }
 
-  /**
-   * 친구 삭제
-   */
-  async removeFriend(friendId: string): Promise<void> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      mockFriends = mockFriends.filter(f => f.id !== friendId);
-      return;
-    }
-    return this.delete<void>(`/api/v1/friends/${friendId}`);
+  async getReceivedRequests(page = 0, size = 20): Promise<PageResponse<FriendRequest>> {
+    return this.get<PageResponse<FriendRequest>>('/api/v1/users/friends/requests/received', { params: { page, size } });
   }
 
-  /**
-   * 친구 요청 보내기
-   */
-  async sendFriendRequest(userId: string): Promise<FriendRequest> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const newRequest: FriendRequest = {
-        id: `r${Date.now()}`,
-        nickname: `User ${userId}`,
-      };
-      mockRequests.push(newRequest);
-      return newRequest;
-    }
-    return this.post<FriendRequest>('/api/v1/friends/requests', { userId });
+  async getFriends(page = 0, size = 20): Promise<PageResponse<Friend>> {
+    return this.get<PageResponse<Friend>>('/api/v1/users/friends', { params: { page, size } });
   }
 
-  /**
-   * 친구 요청 거절
-   */
-  async rejectFriendRequest(requestId: string): Promise<void> {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      mockRequests = mockRequests.filter(r => r.id !== requestId);
-      return;
-    }
-    return this.delete<void>(`/api/v1/friends/requests/${requestId}`);
+  async deleteFriend(friendshipId: number): Promise<void> {
+    return this.delete<void>(`/api/v1/users/friends/${friendshipId}`);
+  }
+
+  // ========== 메타데이터 API ==========
+
+  async getCategories(): Promise<Category[]> {
+    return this.get<Category[]>('/api/v1/users/categories');
+  }
+
+  async getTerms(type?: string): Promise<Term[]> {
+    return this.get<Term[]>('/api/v1/users/terms', type ? { params: { type } } : undefined);
   }
 }
 
 export const userService = new UserService();
 
-// 하위 호환성을 위한 별칭 export
 export const userApi = {
+  signup: (request: SignupRequest) => userService.signup(request),
+  login: (request: LoginRequest) => userService.login(request),
+  checkWithdrawn: (request: CheckWithdrawnRequest) => userService.checkWithdrawn(request), // ✅ 추가
+  withdraw: () => userService.withdraw(),
   getProfile: () => userService.getProfile(),
-  updateProfile: (updates: Partial<UserProfile>) => userService.updateProfile(updates),
+  updateProfile: (request: UpdateProfileRequest) => userService.updateProfile(request),
+  searchUsers: (nickname: string) => userService.searchUsers(nickname),
+  getCategories: () => userService.getCategories(),
+  getTerms: (type?: string) => userService.getTerms(type),
 };
 
 export const friendsApi = {
-  getFriends: () => userService.getFriends(),
-  getRequests: () => userService.getFriendRequests(),
-  acceptRequest: (id: string) => userService.acceptFriendRequest(id),
-  removeFriend: (id: string) => userService.removeFriend(id),
+  sendFriendRequest: (targetUserId: string) => userService.sendFriendRequest(targetUserId),
+  processFriendRequest: (request: ProcessFriendRequestRequest) => userService.processFriendRequest(request),
+  getReceivedRequests: (page?: number, size?: number) => userService.getReceivedRequests(page, size),
+  getFriends: (page?: number, size?: number) => userService.getFriends(page, size),
+  deleteFriend: (friendshipId: number) => userService.deleteFriend(friendshipId),
 };
