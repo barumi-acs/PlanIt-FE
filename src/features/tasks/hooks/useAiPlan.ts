@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import axios from 'axios';
 import { Task } from '../../../types';
+import { PlanData } from '../types/aiPlan.types';
+import { strategyService } from '../../../api/strategy.service';
 
 export const useAiPlan = (tasks: Task[], setTasks: (tasks: Task[]) => void) => {
   const today = new Date().toISOString().split('T')[0];
@@ -8,33 +11,94 @@ export const useAiPlan = (tasks: Task[], setTasks: (tasks: Task[]) => void) => {
   const [aiStartDate, setAiStartDate] = useState(today);
   const [aiEndDate, setAiEndDate] = useState(today);
   const [aiGeneratedTasks, setAiGeneratedTasks] = useState<string[]>([]);
+  const [planData, setPlanData] = useState<PlanData | null>(null);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [isAiExpanded, setIsAiExpanded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const generateAiPlan = async () => {
     if (!aiPrompt) return;
+
     setIsAiGenerating(true);
+    setPlanData(null); // 이전 데이터 초기화
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `목표: ${aiPrompt}, 기간: ${aiStartDate} ~ ${aiEndDate}. 이 목표를 달성하기 위한 구체적인 할 일 목록을 3-5개 정도 생성해줘. 한국어로 답변해줘.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
-          }
-        }
+      // Backend API 호출
+      const response = await strategyService.generatePlan({
+        goalText: aiPrompt,
+        startDate: aiStartDate,
+        endDate: aiEndDate,
       });
-      const generated = JSON.parse(response.text || "[]");
-      setAiGeneratedTasks(generated);
+
+      setPlanData(response);
     } catch (error) {
-      console.error("AI Generation Error:", error);
-      // Fallback mock
-      setAiGeneratedTasks([`[${aiPrompt}] 기초 다지기`, `[${aiPrompt}] 실전 연습`, `[${aiPrompt}] 보완 및 마무리`]);
+      console.error("❌ AI 계획 생성 실패:", error);
+
+      // 에러 상세 정보 출력
+      if (axios.isAxiosError(error)) {
+        console.error('상태 코드:', error.response?.status);
+        console.error('에러 메시지:', error.response?.data);
+        console.error('요청 URL:', error.config?.url);
+        console.error('Base URL:', error.config?.baseURL);
+      }
+
+      alert("AI 계획 생성에 실패했습니다. 다시 시도해주세요.");
+
+      // Fallback: 기존 로직 유지 (개발 중 백엔드 없을 때 대비)
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: `목표: ${aiPrompt}, 기간: ${aiStartDate} ~ ${aiEndDate}. 이 목표를 달성하기 위한 구체적인 할 일 목록을 3-5개 정도 생성해줘. 한국어로 답변해줘.`,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          }
+        });
+        const generated = JSON.parse(response.text || "[]");
+        setAiGeneratedTasks(generated);
+      } catch (fallbackError) {
+        console.error("Fallback AI Generation Error:", fallbackError);
+        setAiGeneratedTasks([`[${aiPrompt}] 기초 다지기`, `[${aiPrompt}] 실전 연습`, `[${aiPrompt}] 보완 및 마무리`]);
+      }
     } finally {
       setIsAiGenerating(false);
+    }
+  };
+
+  const savePlan = async () => {
+    if (!planData || !planData.goal) {
+      alert("저장할 계획이 없습니다.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const response = await strategyService.savePlan({
+        categoryName: "AI 생성 계획", // 기본 카테고리명
+        goal: planData.goal
+      });
+
+      alert(`계획이 저장되었습니다! (Goal ID: ${response.goalId})`);
+
+      // 저장 후 초기화
+      setPlanData(null);
+      setAiPrompt('');
+    } catch (error) {
+      console.error("❌ 계획 저장 실패:", error);
+
+      if (axios.isAxiosError(error)) {
+        console.error('상태 코드:', error.response?.status);
+        console.error('에러 메시지:', error.response?.data);
+      }
+
+      alert("계획 저장에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -59,10 +123,14 @@ export const useAiPlan = (tasks: Task[], setTasks: (tasks: Task[]) => void) => {
     aiEndDate,
     setAiEndDate,
     aiGeneratedTasks,
+    planData,
+    setPlanData,
     isAiGenerating,
+    isSaving,
     isAiExpanded,
     setIsAiExpanded,
     generateAiPlan,
+    savePlan,
     addAiTasksToMyList
   };
 };
