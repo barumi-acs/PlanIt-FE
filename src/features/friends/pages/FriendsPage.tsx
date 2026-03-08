@@ -1,185 +1,328 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Plus } from 'lucide-react';
-import { Friend, FriendRequest } from '../../../types';
-import FriendTodoView from '../components/FriendTodoView';
-import { useFriendsContext } from '../context/FriendsContext';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-const FriendsPage: React.FC = () => {
+import React, { useState } from 'react';
+import { useFriends, useFriendRequests, useProcessFriendRequest, useDeleteFriend } from '../hooks/useFriends';
+import { useSearchUsers } from '../hooks/useSearchUsers';
+import { LoadingSpinner } from '../../../components/common/LoadingSpinner';
+import { Users, UserPlus, UserMinus, Check, X, Search } from 'lucide-react';
+import { Friend } from '../../../api/user.service';
+import FriendTodoView from '../components/FriendTodoView';
+
+export const FriendsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [reactionTaskId, setReactionTaskId] = useState<string | null>(null);
+
+  const { data: friendsData, isLoading: friendsLoading, refetch: refetchFriends } = useFriends(currentPage, 20);
+  const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests } = useFriendRequests(currentPage, 20);
+  const processRequestMutation = useProcessFriendRequest();
+  const deleteFriendMutation = useDeleteFriend();
+
+  // 탭 전환 시 데이터 새로고침
+  const handleTabChange = (tab: 'friends' | 'requests' | 'search') => {
+    setActiveTab(tab);
+    if (tab === 'friends') {
+      refetchFriends();
+    } else if (tab === 'requests') {
+      refetchRequests();
+    }
+  };
+
   const {
-    selectedFriendId,
-    setSelectedFriendId,
-    friends,
-    setFriends,
-    friendRequests,
-    setFriendRequests,
-    friendSearchQuery,
-    setFriendSearchQuery,
-    reactionTaskId,
-    setReactionTaskId,
-    friendToRemoveId,
-    setFriendToRemoveId
-  } = useFriendsContext();
+    searchKeyword,
+    setSearchKeyword,
+    searchResults,
+    isLoading: searchLoading,
+    sendFriendRequest,
+    isSending
+  } = useSearchUsers();
+
+  const handleAcceptRequest = (friendshipId: number) => {
+    processRequestMutation.mutate({
+      friendshipId,
+      status: 'ACCEPTED',
+    });
+  };
+
+  const handleRejectRequest = (friendshipId: number) => {
+    processRequestMutation.mutate({
+      friendshipId,
+      status: 'REJECTED',
+    });
+  };
+
+  const handleDeleteFriend = (friendshipId: number) => {
+    if (confirm('정말 친구를 삭제하시겠습니까?')) {
+      deleteFriendMutation.mutate(friendshipId);
+    }
+  };
+
+  const handleSendFriendRequest = async (targetUserId: string, nickname: string) => {
+    try {
+      await sendFriendRequest(targetUserId);
+      alert(`${nickname}님에게 친구 요청을 보냈습니다.`);
+    } catch (error) {
+      console.error('친구 요청 실패:', error);
+      alert('친구 요청에 실패했습니다.');
+    }
+  };
+
+  // 친구 선택 (FriendTodoView에서 자체적으로 tasks 로드)
+  const handleSelectFriend = (friend: Friend) => {
+    setSelectedFriend(friend);
+  };
+
+  if (friendsLoading || requestsLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
-    <motion.div
-      key="friends"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="h-full flex flex-col"
-    >
-      {selectedFriendId ? (
-        <FriendTodoView 
-          friend={friends.find(f => f.id === selectedFriendId)!} 
-          onBack={() => setSelectedFriendId(null)}
-          reactionTaskId={reactionTaskId}
-          setReactionTaskId={setReactionTaskId}
-        />
-      ) : (
-        <>
-          {/* Search Section */}
-          <div className="mb-8">
-            <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">친구 추가</h4>
-            <div className="glass-card p-4 rounded-2xl mb-4 flex items-center gap-3">
-              <Plus size={18} className="text-gray-300" />
-              <input 
-                placeholder="친구의 닉네임을 검색하세요"
-                value={friendSearchQuery}
-                onChange={(e) => setFriendSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none text-sm font-medium"
-              />
-            </div>
-            
-            {friendSearchQuery.length > 0 && (
-              <div className="space-y-3 mb-6">
-                {['이민수', '최유진', '강동원']
-                  .filter(n => n.includes(friendSearchQuery))
-                  .map(name => (
-                    <div key={name} className="glass-card p-4 rounded-2xl flex justify-between items-center bg-primary/5 border-primary/10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-primary shadow-sm">
-                          {name[0]}
-                        </div>
-                        <span className="font-bold text-sm">{name}</span>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setFriendRequests([...friendRequests, { id: Math.random().toString(), nickname: name }]);
-                          setFriendSearchQuery('');
-                        }}
-                        className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20"
-                      >
-                        추가
-                      </button>
-                    </div>
-                  ))}
-                {['이민수', '최유진', '강동원'].filter(n => n.includes(friendSearchQuery)).length === 0 && (
-                  <p className="text-center text-xs text-gray-400 py-4">검색 결과가 없습니다.</p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Requested Friends */}
-          <div className="mb-8">
-            <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">요청된 친구</h4>
-            <div className="space-y-3">
-              {friendRequests.length > 0 ? friendRequests.map(req => (
-                <div key={req.id} className="glass-card p-4 rounded-2xl flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-400">
-                      {req.nickname[0]}
-                    </div>
-                    <span className="font-bold text-sm">{req.nickname}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => {
-                        setFriends([...friends, { id: req.id, nickname: req.nickname, tasks: [] }]);
-                        setFriendRequests(friendRequests.filter(r => r.id !== req.id));
-                      }}
-                      className="px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-lg"
-                    >
-                      수락
-                    </button>
-                    <button 
-                      onClick={() => setFriendRequests(friendRequests.filter(r => r.id !== req.id))}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-lg"
-                    >
-                      거절
-                    </button>
-                  </div>
-                </div>
-              )) : (
-                <p className="text-xs text-gray-400 text-center py-4">새로운 요청이 없습니다.</p>
-              )}
-            </div>
-          </div>
-
-          {/* My Friends */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide">
-            <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">친구</h4>
-            <div className="space-y-3">
-              {friends.map(friend => (
-                <div key={friend.id} className="glass-card p-4 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white transition-colors" onClick={() => setSelectedFriendId(friend.id)}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                      {friend.nickname[0]}
-                    </div>
-                    <span className="font-bold text-sm">{friend.nickname}</span>
-                  </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFriendToRemoveId(friend.id);
-                    }}
-                    className="text-[10px] font-bold text-gray-300 hover:text-red-400"
-                  >
-                    친구 취소
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Cancel Confirmation Modal */}
-      <AnimatePresence>
-        {friendToRemoveId && (
-          <div className="absolute inset-0 z-[100] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-6 rounded-[32px] w-full max-w-[300px] text-center shadow-2xl"
-            >
-              <h3 className="font-bold mb-2">친구를 취소할까요?</h3>
-              <p className="text-xs text-gray-500 mb-6">취소하면 친구의 소식을 볼 수 없습니다.</p>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setFriendToRemoveId(null)}
-                  className="flex-1 py-3 bg-gray-100 rounded-xl text-xs font-bold"
-                >
-                  취소
-                </button>
-                <button 
-                  onClick={() => {
-                    setFriends(friends.filter(f => f.id !== friendToRemoveId));
-                    setFriendToRemoveId(null);
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* 친구 프로필 모달 */}
+        {selectedFriend && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex-1 overflow-y-auto p-6">
+                <FriendTodoView
+                  friend={{
+                    id: selectedFriend.userId,
+                    nickname: selectedFriend.nickname,
+                    tasks: [],
                   }}
-                  className="flex-1 py-3 bg-red-500 text-white rounded-xl text-xs font-bold"
-                >
-                  확인
-                </button>
+                  onBack={() => {
+                    setSelectedFriend(null);
+                    setReactionTaskId(null);
+                  }}
+                  reactionTaskId={reactionTaskId}
+                  setReactionTaskId={setReactionTaskId}
+                />
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+
+        {/* 헤더 */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <Users className="w-8 h-8" />
+            친구 관리
+          </h1>
+        </div>
+
+        {/* 탭 */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px">
+              <button
+                onClick={() => handleTabChange('friends')}
+                className={`py-4 px-6 text-sm font-medium border-b-2 ${activeTab === 'friends'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                친구 목록 ({friendsData?.totalElements || 0})
+              </button>
+              <button
+                onClick={() => handleTabChange('requests')}
+                className={`py-4 px-6 text-sm font-medium border-b-2 ${activeTab === 'requests'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                받은 요청 ({requestsData?.totalElements || 0})
+              </button>
+              <button
+                onClick={() => handleTabChange('search')}
+                className={`py-4 px-6 text-sm font-medium border-b-2 ${activeTab === 'search'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                친구 찾기
+              </button>
+            </nav>
+          </div>
+
+          {/* 친구 목록 */}
+          {activeTab === 'friends' && (
+            <div className="divide-y divide-gray-200">
+              {friendsData?.content.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  아직 친구가 없습니다.
+                </div>
+              ) : (
+                friendsData?.content.map((friend) => (
+                  <div
+                    key={friend.friendshipId}
+                    className="p-4 flex items-center justify-between hover:bg-gray-50"
+                  >
+                    <div
+                      className="flex items-center gap-4 flex-1 cursor-pointer"
+                      onClick={() => handleSelectFriend(friend)}
+                    >
+                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <Users className="w-6 h-6 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{friend.nickname}</p>
+                        <p className="text-sm text-gray-500">{friend.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFriend(friend.friendshipId);
+                      }}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-full"
+                      title="친구 삭제"
+                    >
+                      <UserMinus className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* 받은 친구 요청 */}
+          {activeTab === 'requests' && (
+            <div className="divide-y divide-gray-200">
+              {requestsData?.content.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  받은 친구 요청이 없습니다.
+                </div>
+              ) : (
+                requestsData?.content.map((request) => (
+                  <div
+                    key={request.friendshipId}
+                    className="p-4 flex items-center justify-between hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <UserPlus className="w-6 h-6 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{request.nickname}</p>
+                        <p className="text-sm text-gray-500">{request.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAcceptRequest(request.friendshipId)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-full"
+                        title="수락"
+                      >
+                        <Check className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(request.friendshipId)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-full"
+                        title="거절"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* 친구 검색 */}
+          {activeTab === 'search' && (
+            <div>
+              {/* 검색 입력 */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    placeholder="닉네임으로 검색 (최소 2자)"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* 검색 결과 */}
+              <div className="divide-y divide-gray-200">
+                {searchKeyword.length < 2 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    닉네임을 2자 이상 입력해주세요.
+                  </div>
+                ) : searchLoading ? (
+                  <div className="p-8 flex justify-center">
+                    <LoadingSpinner />
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    검색 결과가 없습니다.
+                  </div>
+                ) : (
+                  searchResults.map((user) => (
+                    <div
+                      key={user.userId}
+                      className="p-4 flex items-center justify-between hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <Users className="w-6 h-6 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{user.nickname}</p>
+                          <p className="text-sm text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSendFriendRequest(user.userId, user.nickname)}
+                        disabled={isSending}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span className="text-sm font-medium">친구 요청</span>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 페이지네이션 */}
+        {((activeTab === 'friends' && friendsData && friendsData.totalPages > 1) ||
+          (activeTab === 'requests' && requestsData && requestsData.totalPages > 1)) && (
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                disabled={currentPage === 0}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                이전
+              </button>
+              <span className="px-4 py-2 text-sm text-gray-700">
+                {currentPage + 1} /{' '}
+                {activeTab === 'friends' ? friendsData?.totalPages : requestsData?.totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={
+                  currentPage >=
+                  ((activeTab === 'friends' ? friendsData?.totalPages : requestsData?.totalPages) || 1) - 1
+                }
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                다음
+              </button>
+            </div>
+          )}
+      </div>
+    </div>
   );
 };
-
-export default FriendsPage;

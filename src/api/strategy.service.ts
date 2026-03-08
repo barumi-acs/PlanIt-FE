@@ -1,0 +1,107 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { BaseApiService, createApiClient, SERVICE_URLS } from './base';
+import { PlanData } from '../features/tasks/types/aiPlan.types';
+
+/**
+ * AI 계획 생성 요청 타입
+ */
+export interface GeneratePlanRequest {
+    goalText: string;
+    startDate: string; // Format: "YYYY-MM-DD"
+    endDate: string; // Format: "YYYY-MM-DD"
+}
+
+/**
+ * AI 계획 저장 요청 타입
+ */
+export interface SavePlanRequest {
+    categoryName: string;
+    goal: {
+        title: string;
+        startDate: string;
+        endDate: string;
+        weekGoals: Array<{
+            title: string;
+            tasks: Array<{
+                content: string;
+                targetDate: string;
+            }>;
+        }>;
+    };
+}
+
+/**
+ * AI 계획 저장 응답 타입
+ */
+export interface SavePlanResponse {
+    goalId: number;
+}
+
+/**
+ * Strategy Service API
+ * AI 기반 전략 및 계획 생성을 담당
+ */
+class StrategyService extends BaseApiService {
+    constructor() {
+        // Intelligence Service 환경 변수 사용
+        // AI 생성은 시간이 오래 걸리므로 타임아웃을 60초로 설정
+        const strategyClient = createApiClient(SERVICE_URLS.INTELLIGENCE);
+        strategyClient.defaults.timeout = 60000; // 60초
+        super(strategyClient);
+    }
+
+    /**
+     * AI 계획 생성
+     * @param request - 목표 텍스트 및 기간 정보
+     * @returns AI가 생성한 주차별 계획 데이터
+     */
+    async generatePlan(request: GeneratePlanRequest): Promise<PlanData> {
+        try {
+            const response = await this.client.post('/api/v1/strategy/plans/generate', request);
+            console.log('📦 Generate API Response:', response.data);
+
+            // 백엔드 응답 구조에 따라 데이터 추출
+            if (response.data?.data) {
+                return response.data.data;
+            }
+            if (response.data?.goal) {
+                return response.data;
+            }
+            return response.data;
+        } catch (error) {
+            console.error('❌ Generate Plan Error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * AI 계획 저장
+     * @param request - 저장할 계획 데이터
+     * @returns 저장된 계획의 goalId
+     */
+    async savePlan(request: SavePlanRequest): Promise<SavePlanResponse> {
+        try {
+            const response = await this.client.post('/api/v1/strategy/plans/save', request, {
+                headers: {
+                    'X-User-Id': 'test-user'
+                }
+            });
+            console.log('📦 Save API Response:', response.data);
+
+            // 응답 구조에 따라 데이터 추출
+            if (response.data?.data) {
+                return response.data.data;
+            }
+            return response.data;
+        } catch (error) {
+            console.error('❌ Save Plan Error:', error);
+            throw error;
+        }
+    }
+}
+
+export const strategyService = new StrategyService();

@@ -10,14 +10,23 @@
 
 // Base API 설정
 export { apiClients, SERVICE_URLS, createApiClient, BaseApiService } from './base';
-export type { ApiResponse, ApiError } from './base';
+export type { ApiResponse, ApiError, LegacyApiResponse } from './base';
 
 // User Service
 export { userService, userApi, friendsApi } from './user.service';
 
 // Schedule Service
-export { scheduleService, tasksApi } from './schedule.service';
-export type { CreateTaskRequest, UpdateTaskRequest } from './schedule.service';
+export { scheduleService } from './schedule.service';
+export type {
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  GoalApiResponse,
+  GoalDetailApiResponse,
+  BackendWeekGoal,
+  CreateGoalApiRequest,
+  CreateWeekGoalApiRequest,
+  WeekGoalApiResponse,
+} from './schedule.service';
 
 // Intelligence Service
 export { intelligenceService } from './intelligence.service';
@@ -52,3 +61,6 @@ export type {
   ChatbotQueryRequest,
   ChatbotResponse,
 } from './chatbot.service';
+// Strategy Service
+export { strategyService } from './strategy.service';
+export type { GeneratePlanRequest } from './strategy.service';
