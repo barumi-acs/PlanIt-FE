@@ -114,32 +114,91 @@ export interface SummaryFeedback {
 }
 
 /**
- * 피드백 대시보드 응답 타입
+ * 리포트 타입
  */
-export interface FeedbackDashboard {
-  targetPeriod: {
-    month: string;
-    week: string;
-  };
-  feedbacks: {
-    growth: GrowthFeedback;
-    timeline: TimelineFeedback;
-    pattern: PatternFeedback;
-    summary: SummaryFeedback;
-  };
+export type ReportType = 'GROWTH' | 'TIMELINE' | 'PATTERN' | 'SUMMARY';
+
+/**
+ * Growth 리포트 응답 타입
+ */
+export interface GrowthReport {
+  type: 'GROWTH';
+  message: string;
+  topicName: string;
+  growthRate: number;
+  generatedAt: string;
 }
 
 /**
- * 일간 응원 피드백 타입
+ * Timeline 차트 데이터 타입
+ */
+export interface TimelineChartData {
+  month: string;
+  completionRate: number;
+}
+
+/**
+ * Timeline 리포트 응답 타입
+ */
+export interface TimelineReport {
+  type: 'TIMELINE';
+  message: string;
+  chartData: TimelineChartData[];
+  generatedAt: string;
+}
+
+/**
+ * Pattern 차트 데이터 타입
+ */
+export interface PatternChartData {
+  day: DayOfWeek;
+  total: number;
+  completed: number;
+  postponed: number;
+}
+
+/**
+ * Pattern 리포트 응답 타입
+ */
+export interface PatternReport {
+  type: 'PATTERN';
+  message: string;
+  chartData: PatternChartData[];
+  worstDay: DayOfWeek;
+  avgPostponeCount: number;
+  generatedAt: string;
+}
+
+/**
+ * Summary 리포트 응답 타입
+ */
+export interface SummaryReport {
+  type: 'SUMMARY';
+  message: string;
+  completionRate: number;
+  totalTasks: number;
+  completedTasks: number;
+  generatedAt: string;
+}
+
+/**
+ * 피드백 대시보드 응답 타입 (API 명세서 기준)
+ */
+export interface FeedbackDashboard {
+  growth: GrowthReport;
+  timeline: TimelineReport;
+  pattern: PatternReport;
+  summary: SummaryReport;
+}
+
+/**
+ * 일간 응원 피드백 타입 (API 명세서 기준)
  */
 export interface DailyCheerFeedback {
-  targetDate: string;
+  message: string;
   dayOfWeek: DayOfWeek;
-  cheerData: {
-    diffFromAvg: string;
-    isHigherThanAvg: boolean;
-    message: string;
-  };
+  performanceRate: number;
+  comparisonToAverage: number;
 }
 
 /**
@@ -154,8 +213,13 @@ class InsightService extends BaseApiService {
   /**
    * AI 피드백 대시보드 전체 조회
    * 성장 격려, 타임라인, 미룸 패턴, 종합 피드백을 한 번에 조회
+   * 
+   * @param yearMonth - 대상 월 (예: "2026-02")
+   * @param week - 대상 주차 (예: 9)
+   * @returns FeedbackDashboard
    */
   async getFeedbackDashboard(yearMonth: string, week: number): Promise<FeedbackDashboard> {
+    // BaseApiService.get()이 이미 response.data.data를 반환함
     return this.get<FeedbackDashboard>('/api/v1/feedbacks/dashboard', {
       params: { yearMonth, week },
     });
@@ -164,11 +228,12 @@ class InsightService extends BaseApiService {
   /**
    * 일간 응원 피드백 조회
    * 홈 화면 상단에 띄워줄 오늘의 요일별 수행률 기반 AI 응원 메시지
+   * 
+   * @returns DailyCheerFeedback
    */
-  async getDailyCheerFeedback(targetDate?: string): Promise<DailyCheerFeedback> {
-    return this.get<DailyCheerFeedback>('/api/v1/feedbacks/daily-cheer', {
-      params: targetDate ? { targetDate } : undefined,
-    });
+  async getDailyCheerFeedback(): Promise<DailyCheerFeedback> {
+    // BaseApiService.get()이 이미 response.data.data를 반환함
+    return this.get<DailyCheerFeedback>('/api/v1/feedbacks/daily-cheer');
   }
 
   /**

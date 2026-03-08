@@ -45,3 +45,10 @@ export type {
   FeedbackDashboard,
   DailyCheerFeedback,
 } from './insight.service';
+
+// Chatbot Service
+export { chatbotService } from './chatbot.service';
+export type {
+  ChatbotQueryRequest,
+  ChatbotResponse,
+} from './chatbot.service';
