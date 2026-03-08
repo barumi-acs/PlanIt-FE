@@ -185,10 +185,16 @@ export interface SummaryReport {
  * 피드백 대시보드 응답 타입 (API 명세서 기준)
  */
 export interface FeedbackDashboard {
-  growth: GrowthReport;
-  timeline: TimelineReport;
-  pattern: PatternReport;
-  summary: SummaryReport;
+  targetPeriod: {
+    month: string;
+    week: number;
+  };
+  feedbacks: {
+    growth: GrowthReport;
+    timeline: TimelineReport;
+    pattern: PatternReport;
+    summary: SummaryReport;
+  };
 }
 
 /**
