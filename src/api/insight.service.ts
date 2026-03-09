@@ -71,46 +71,13 @@ export interface GrowthFeedback {
 }
 
 /**
- * 타임라인 차트 데이터 타입
- */
-export interface TimelineChartData {
-  month: string;
-  rate: number;
-}
-
-/**
- * 타임라인 피드백 타입
- */
-export interface TimelineFeedback {
-  chartData: TimelineChartData[];
-}
-
-/**
  * 요일별 패턴 차트 데이터 타입
  */
 export interface PatternChartData {
-  dayOfWeek: DayOfWeek;
-  completionRate: number;
-  postponeCount: number;
-}
-
-/**
- * 미룸 패턴 피드백 타입
- */
-export interface PatternFeedback {
-  worstDay: DayOfWeek;
-  avgPostponeCount: number;
-  message: string;
-  chart: PatternChartData[];
-}
-
-/**
- * 종합 피드백 타입
- */
-export interface SummaryFeedback {
-  achievementTrend: string;
-  bestFocusTime: string;
-  message: string;
+  day: DayOfWeek;
+  total: number;
+  completed: number;
+  postponed: number;
 }
 
 /**
@@ -145,16 +112,6 @@ export interface TimelineReport {
   message: string;
   chartData: TimelineChartData[];
   generatedAt: string;
-}
-
-/**
- * Pattern 차트 데이터 타입
- */
-export interface PatternChartData {
-  day: DayOfWeek;
-  total: number;
-  completed: number;
-  postponed: number;
 }
 
 /**

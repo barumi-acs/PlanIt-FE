@@ -180,10 +180,10 @@ export interface WeekGoalApiResponse {
 /**
  * 현재 사용자 ID 반환
  * - JWT 연동 후: localStorage에서 파싱한 JWT claim으로 교체
- * - 개발 단계: localStorage 'userId' 없으면 'dev-user-001' 기본값
+ * - 개발 단계: localStorage 'userId' 없으면 'test-user' 기본값
  */
 const getMyUserId = (): string => {
-  return localStorage.getItem('userId') || 'dev-user-001';
+  return localStorage.getItem('userId') || 'test-user';
 };
 
 // ─── Schedule Service ────────────────────────────────────────────────────────

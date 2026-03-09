@@ -185,9 +185,9 @@ describe('userService', () => {
 
     describe('processFriendRequest', () => {
         it('친구 요청 처리를 성공적으로 수행해야 함', async () => {
-            const mockRequest: ProcessFriendRequestRequest = {
+            const request: ProcessFriendRequestRequest = {
                 friendshipId: 1,
-                action: 'ACCEPTED',
+                status: 'ACCEPTED',
             };
 
             const mockResponse = {
@@ -198,9 +198,9 @@ describe('userService', () => {
 
             mockedAxios.post.mockResolvedValue(mockResponse);
 
-            await userService.processFriendRequest(mockRequest);
+            await userService.processFriendRequest(request);
 
-            expect(mockedAxios.post).toHaveBeenCalledWith('/friends/requests', mockRequest);
+            expect(mockedAxios.post).toHaveBeenCalledWith('/friends/requests', request);
         });
     });
 

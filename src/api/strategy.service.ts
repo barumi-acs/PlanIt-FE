@@ -9,7 +9,7 @@ import { PlanData } from '../features/tasks/types/aiPlan.types';
 /**
  * AI 계획 생성 요청 타입
  */
-export interface GeneratePlanRequest {
+export interface StrategyGeneratePlanRequest {
     goalText: string;
     startDate: string; // Format: "YYYY-MM-DD"
     endDate: string; // Format: "YYYY-MM-DD"
@@ -59,7 +59,7 @@ class StrategyService extends BaseApiService {
      * @param request - 목표 텍스트 및 기간 정보
      * @returns AI가 생성한 주차별 계획 데이터
      */
-    async generatePlan(request: GeneratePlanRequest): Promise<PlanData> {
+    async generatePlan(request: StrategyGeneratePlanRequest): Promise<PlanData> {
         try {
             const response = await this.client.post('/api/v1/strategy/plans/generate', request);
             console.log('📦 Generate API Response:', response.data);

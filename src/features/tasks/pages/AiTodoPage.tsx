@@ -14,8 +14,16 @@ interface AiTodoPageProps {
 const AiTodoPage: React.FC<AiTodoPageProps> = ({
   selectedKeywords,
 }) => {
-  const { tasks, setTasks } = useTasksContext();
-  const ai = useAiPlan(tasks, setTasks);
+  const { tasks, setTasks, loadTasks, loadGoals } = useTasksContext();
+  
+  // 계획 저장 성공 시 서버 데이터를 다시 불러오는 콜백
+  const handleSaveSuccess = () => {
+    const today = new Date().toISOString().split('T')[0];
+    loadTasks(today);
+    loadGoals();
+  };
+
+  const ai = useAiPlan(tasks, setTasks, handleSaveSuccess);
   const {
     aiStartDate,
     setAiStartDate,

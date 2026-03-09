@@ -5,7 +5,7 @@
  * 백엔드 연동에 필요한 추가 필드는 이 파일에서만 관리합니다.
  */
 
-import { BackendWeekGoal } from '../../../api/schedule.service';
+import { BackendWeekGoal } from '../../api/schedule.service';
 
 /** 백엔드 연동 확장 Task */
 export interface Task {

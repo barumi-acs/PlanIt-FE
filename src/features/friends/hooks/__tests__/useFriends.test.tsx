@@ -169,7 +169,7 @@ describe('useProcessFriendRequest', () => {
 
         const request = {
             friendshipId: 1,
-            action: 'ACCEPTED' as const,
+            status: 'ACCEPTED' as const,
         };
 
         result.current.mutate(request);
@@ -191,7 +191,7 @@ describe('useProcessFriendRequest', () => {
 
         const request = {
             friendshipId: 1,
-            action: 'ACCEPTED' as const,
+            status: 'ACCEPTED' as const,
         };
 
         result.current.mutate(request);

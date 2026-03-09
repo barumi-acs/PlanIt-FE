@@ -64,6 +64,10 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      
+      // 개발 단계용 테스트 유저 ID 추가 (모든 서비스 공통)
+      config.headers['X-User-Id'] = 'test-user';
+      
       return config;
     },
     (error) => {
