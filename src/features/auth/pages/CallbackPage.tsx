@@ -32,7 +32,24 @@ export const CallbackPage: React.FC = () => {
             }
 
             console.log('[CallbackPage] idToken 획득 성공, 백엔드 로그인 호출');
-            const authResponse = await userService.login({ cognitoIdToken: idToken });
+            let authResponse;
+            try {
+                authResponse = await userService.login({ cognitoIdToken: idToken });
+            } catch (loginError: any) {
+                const errorCode = loginError?.response?.data?.code;
+                console.log('[CallbackPage] 로그인 API 에러 발생, 코드:', errorCode);
+
+                if (errorCode === 4113) {
+                    // 신규 유저 (DB에 없음) → 온보딩으로
+                    console.log('[CallbackPage] 신규 유저 감지(4113) → 온보딩으로 이동');
+                    sessionStorage.setItem('cognitoIdToken', idToken);
+                    navigate('/onboarding');
+                    return;
+                }
+                
+                throw loginError;
+            }
+
             console.log('[CallbackPage] 백엔드 응답:', authResponse);
 
             if (!authResponse) {

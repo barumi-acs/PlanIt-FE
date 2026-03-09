@@ -31,7 +31,7 @@ export type {
 // Intelligence Service
 export { intelligenceService } from './intelligence.service';
 export type {
-  GeneratePlanRequest,
+  IntelligenceGeneratePlanRequest,
   AiPlanResponse,
   RecommendedCategory,
 } from './intelligence.service';
@@ -47,10 +47,7 @@ export type {
   GoalProgress,
   GrowthFeedback,
   TimelineChartData,
-  TimelineFeedback,
   PatternChartData,
-  PatternFeedback,
-  SummaryFeedback,
   FeedbackDashboard,
   DailyCheerFeedback,
 } from './insight.service';
@@ -64,4 +61,4 @@ export type {
 
 // Strategy Service
 export { strategyService } from './strategy.service';
-export type { GeneratePlanRequest } from './strategy.service';
+export type { StrategyGeneratePlanRequest } from './strategy.service';

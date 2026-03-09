@@ -9,7 +9,7 @@ import { Task } from '../types';
 /**
  * AI 플랜 생성 요청 타입
  */
-export interface GeneratePlanRequest {
+export interface IntelligenceGeneratePlanRequest {
   keywords: string[];
   date: string;
   preferences?: {
@@ -49,7 +49,7 @@ class IntelligenceService extends BaseApiService {
   /**
    * AI 기반 할일 플랜 생성
    */
-  async generatePlan(request: GeneratePlanRequest): Promise<AiPlanResponse> {
+  async generatePlan(request: IntelligenceGeneratePlanRequest): Promise<AiPlanResponse> {
     return this.post<AiPlanResponse>('/api/v1/ai/generate-plan', request);
   }
 

@@ -5,7 +5,11 @@ import { Task } from '../../../types';
 import { PlanData } from '../types/aiPlan.types';
 import { strategyService } from '../../../api/strategy.service';
 
-export const useAiPlan = (tasks: Task[], setTasks: (tasks: Task[]) => void) => {
+export const useAiPlan = (
+  tasks: Task[], 
+  setTasks: (tasks: Task[]) => void,
+  onSuccess?: () => void
+) => {
   const today = new Date().toISOString().split('T')[0];
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiStartDate, setAiStartDate] = useState(today);
@@ -80,10 +84,20 @@ export const useAiPlan = (tasks: Task[], setTasks: (tasks: Task[]) => void) => {
     try {
       const response = await strategyService.savePlan({
         categoryName: "AI 생성 계획", // 기본 카테고리명
-        goal: planData.goal
+        goal: {
+          title: aiPrompt,
+          startDate: aiStartDate,
+          endDate: aiEndDate,
+          weekGoals: planData.goal.weekGoals
+        }
       });
 
       alert(`계획이 저장되었습니다! (Goal ID: ${response.goalId})`);
+
+      // 🔄 서버 데이터 재조회 트리거 호출
+      if (onSuccess) {
+        onSuccess();
+      }
 
       // 저장 후 초기화
       setPlanData(null);
