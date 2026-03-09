@@ -119,8 +119,22 @@ export class BaseApiService {
   }
 
   protected async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post<ApiResponse<T>>(url, data, config);
-    return response.data.data;
+    try {
+      const response = await this.client.post<ApiResponse<T>>(url, data, config);
+      
+      // 백엔드 ApiResponse 표준에 따라 code가 200 또는 201이 아니면 비즈니스 예외로 처리
+      const code = response.data.code?.toString();
+      if (code && code !== '200' && code !== '201') {
+        const error = new Error(response.data.message || 'API Error');
+        (error as any).response = response;
+        throw error;
+      }
+      
+      return response.data.data;
+    } catch (error) {
+      console.error(`[BaseApiService] POST ${url} 실패:`, error);
+      throw error;
+    }
   }
 
   protected async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
