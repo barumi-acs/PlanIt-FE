@@ -22,13 +22,13 @@ const PlanetAnimation = ({ size = 'large' }: { size?: 'small' | 'large' }) => {
   return (
     <div className={`relative ${containerSize} mx-auto mb-8`}>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-        <div className={`${planetSize} rounded-full bg-gradient-to-br from-primary to-sky shadow-[0_20px_60px_rgba(124,92,255,0.35)]`} />
+        <div className={`${planetSize} rounded-full planet-gradient shadow-[0_20px_60px_rgba(124,92,255,0.35)] animate-spin-planet`} />
       </div>
       <div className={`absolute top-1/2 left-1/2 ${orbitSize} -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-primary/20`} />
-      <div className={`absolute top-1/2 left-1/2 ${orbitSize} -translate-x-1/2 -translate-y-1/2`}>
+      <div className={`absolute top-1/2 left-1/2 ${orbitSize} -translate-x-1/2 -translate-y-1/2 animate-rotate-star`}>
         {[0, 120, 240].map((deg) => (
           <div key={deg} className="absolute inset-0" style={{ transform: `rotate(${deg}deg)` }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-sky-400 rounded-full shadow-[0_0_12px_rgba(77,211,255,0.7)]" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-sky rounded-full shadow-[0_0_12px_rgba(77,211,255,0.7)] animate-twinkle" />
           </div>
         ))}
       </div>
