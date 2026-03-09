@@ -47,7 +47,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
   // 대시보드 데이터 로드
   useEffect(() => {
     const loadDashboard = async () => {
-      if (tasks.length < 10) return;
+      // if (tasks.length < 10) return;
 
       setLoading(true);
       setError(null);
@@ -116,18 +116,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
       exit={{ opacity: 0, y: -10 }}
       className="h-full flex flex-col pt-4 relative"
     >
-      {tasks.length < 10 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-            <BarChart3 size={32} className="text-gray-300" />
-          </div>
-          <h4 className="font-bold mb-2">데이터가 부족합니다</h4>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            일 평균 3개 이상의 할 일을 등록하고 실천해주세요. <br/>
-            충분한 데이터가 쌓이면 AI 리포트가 생성됩니다.
-          </p>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
             <Brain size={32} className="text-primary" />

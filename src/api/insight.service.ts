@@ -201,10 +201,13 @@ export interface FeedbackDashboard {
  * 일간 응원 피드백 타입 (API 명세서 기준)
  */
 export interface DailyCheerFeedback {
-  message: string;
+  targetDate: string;
   dayOfWeek: DayOfWeek;
-  performanceRate: number;
-  comparisonToAverage: number;
+  cheerData: {
+    message: string;
+    diffFromAvg: string;
+    isHigherThanAvg: boolean;
+  };
 }
 
 /**
