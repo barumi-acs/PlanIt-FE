@@ -8,11 +8,10 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 /**
  * API 응답 공통 타입 (백엔드 표준 응답 형식)
  * - 백엔드 ApiResponse 형식: { code, message, data, timestamp }
- * - 레거시 형식도 지원: { success, data, message }
  */
 export interface ApiResponse<T = any> {
-  code: string;       // e.g. "C2001"
-  message: string;    // e.g. "성공"
+  code: string | number;
+  message: string;
   data: T;
   timestamp: string;
 }
@@ -59,14 +58,24 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
   // Request Interceptor
   instance.interceptors.request.use(
     (config) => {
-      // 인증 토큰이 있다면 헤더에 추가
+      // 1. JWT 토큰 주입
       const token = localStorage.getItem('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       
-      // 개발 단계용 테스트 유저 ID 추가 (모든 서비스 공통)
-      config.headers['X-User-Id'] = 'test-user';
+      // 2. 실제 유저 ID 주입 (X-User-Id 헤더)
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          if (user.userId) {
+            config.headers['X-User-Id'] = user.userId;
+          }
+        } catch (e) {
+          console.error('[BaseApiService] Failed to parse user from localStorage', e);
+        }
+      }
       
       return config;
     },
@@ -81,12 +90,11 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
       return response;
     },
     (error) => {
-      // 에러 처리 로직
       if (error.response?.status === 401) {
-        // ✅ auth 경로는 401이어도 리다이렉트 제외 (login, signup, check-withdrawn 등)
         const isAuthPath = error.config?.url?.includes('/auth/');
         if (!isAuthPath) {
           localStorage.removeItem('accessToken');
+          localStorage.removeItem('userId');
           window.location.href = '/';
         }
       }
@@ -97,9 +105,6 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
   return instance;
 };
 
-/**
- * 각 서비스별 Axios 인스턴스
- */
 export const apiClients = {
   user: createApiClient(SERVICE_URLS.USER),
   schedule: createApiClient(SERVICE_URLS.SCHEDULE),
@@ -107,9 +112,6 @@ export const apiClients = {
   insight: createApiClient(SERVICE_URLS.INSIGHT),
 } as const;
 
-/**
- * 공통 API 호출 헬퍼 함수
- */
 export class BaseApiService {
   constructor(protected client: AxiosInstance) { }
 
@@ -122,16 +124,23 @@ export class BaseApiService {
     try {
       const response = await this.client.post<ApiResponse<T>>(url, data, config);
       
-      // 백엔드 ApiResponse 표준에 따라 code가 200 또는 201이 아니면 비즈니스 예외로 처리
-      const code = response.data.code?.toString();
-      if (code && code !== '200' && code !== '201') {
-        const error = new Error(response.data.message || 'API Error');
-        (error as any).response = response;
-        throw error;
+      const rawCode = response.data.code?.toString();
+      
+      // 🎯 물리적 핵심: 백엔드 커스텀 코드(C2001 등) 및 표준 코드(200, 201) 모두 성공으로 인정
+      const isSuccess = 
+        (rawCode && (rawCode.startsWith('2') || rawCode.startsWith('C2'))) || 
+        (!rawCode && response.status >= 200 && response.status < 300);
+
+      if (isSuccess) {
+        return response.data.data;
       }
       
-      return response.data.data;
+      const error = new Error(response.data.message || `API Error (${rawCode})`);
+      (error as any).response = response;
+      throw error;
+      
     } catch (error) {
+      if ((error as any).response) throw error;
       console.error(`[BaseApiService] POST ${url} 실패:`, error);
       throw error;
     }

@@ -179,12 +179,22 @@ export interface WeekGoalApiResponse {
 
 /**
  * 현재 사용자 ID 반환
- * - JWT 연동 후: localStorage에서 파싱한 JWT claim으로 교체
- * - 개발 단계: localStorage 'userId' 없으면 'test-user' 기본값
+ * - 로그인 성공 시 localStorage 'user' 객체에서 실제 유저 UUID(v7)를 반환
  */
-const getMyUserId = (): string => {
-  return localStorage.getItem('userId') || 'test-user';
+const getMyUserId = (): string | null => {
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      return user.userId || null;
+    } catch (e) {
+      console.error('[ScheduleService] Failed to parse user from localStorage', e);
+    }
+  }
+  console.warn('[ScheduleService] userId가 localStorage에 없습니다. 로그인이 필요합니다.');
+  return null;
 };
+
 
 // ─── Schedule Service ────────────────────────────────────────────────────────
 
