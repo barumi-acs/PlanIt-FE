@@ -23,7 +23,7 @@ const AiTodoPage: React.FC<AiTodoPageProps> = ({
     loadGoals();
   };
 
-  const ai = useAiPlan(tasks, setTasks, handleSaveSuccess);
+  const ai = useAiPlan(tasks, setTasks, handleSaveSuccess, selectedKeywords);
   const {
     aiStartDate,
     setAiStartDate,

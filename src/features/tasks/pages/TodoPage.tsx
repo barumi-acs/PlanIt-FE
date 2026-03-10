@@ -434,17 +434,31 @@ const TodoPage: React.FC<TodoPageProps> = ({
                           {task.taskId && (reactionsMap[task.taskId] || []).filter(r => r.count > 0).length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-50">
                               {(reactionsMap[task.taskId] || []).filter(r => r.count > 0).map(r => (
-                                <span
-                                  key={r.emojiId}
-                                  className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold ${r.myReaction
-                                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                                    : 'bg-gray-100 text-gray-500'
-                                    }`}
-                                >
-                                  {r.emojiChar}
-                                  <span>{r.count}</span>
-                                  {r.myReaction && <span className="text-primary/70">·나</span>}
-                                </span>
+                                <div key={r.emojiId} className="group/emoji relative">
+                                  <span
+                                    className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold ${r.myReaction
+                                      ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                                      : 'bg-gray-100 text-gray-500'
+                                      }`}
+                                  >
+                                    {r.emojiChar}
+                                    <span>{r.count}</span>
+                                    {r.myReaction && <span className="text-primary/70">·나</span>}
+                                  </span>
+
+                                  {/* 🎯 리액터 목록 툴팁 (닉네임 기반) */}
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/emoji:block z-[60]">
+                                    <div className="bg-gray-900/90 backdrop-blur text-white text-[9px] py-1 px-2 rounded-lg whitespace-nowrap shadow-xl">
+                                      <p className="font-bold border-b border-white/10 mb-1 pb-1">{r.name} 반응</p>
+                                      <div className="max-h-20 overflow-y-auto">
+                                        {(r.nicknames || r.userIds)?.map((name, idx) => (
+                                          <p key={idx} className="opacity-80">· {name}</p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="w-2 h-2 bg-gray-900/90 rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2" />
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           )}
@@ -526,17 +540,31 @@ const TodoPage: React.FC<TodoPageProps> = ({
                                         {task.taskId && (reactionsMap[task.taskId] || []).filter(r => r.count > 0).length > 0 && (
                                           <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-50">
                                             {(reactionsMap[task.taskId] || []).filter(r => r.count > 0).map(r => (
-                                              <span
-                                                key={r.emojiId}
-                                                className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold ${r.myReaction
-                                                  ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                                                  : 'bg-gray-100 text-gray-500'
-                                                  }`}
-                                              >
-                                                {r.emojiChar}
-                                                <span>{r.count}</span>
-                                                {r.myReaction && <span className="text-primary/70">·나</span>}
-                                              </span>
+                                              <div key={r.emojiId} className="group/emoji relative">
+                                                <span
+                                                  className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold ${r.myReaction
+                                                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                                                    : 'bg-gray-100 text-gray-500'
+                                                    }`}
+                                                >
+                                                  {r.emojiChar}
+                                                  <span>{r.count}</span>
+                                                  {r.myReaction && <span className="text-primary/70">·나</span>}
+                                                </span>
+
+                                                {/* 🎯 리액터 목록 툴팁 (닉네임 기반) */}
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/emoji:block z-[60]">
+                                                  <div className="bg-gray-900/90 backdrop-blur text-white text-[9px] py-1 px-2 rounded-lg whitespace-nowrap shadow-xl">
+                                                    <p className="font-bold border-b border-white/10 mb-1 pb-1">{r.name} 반응</p>
+                                                    <div className="max-h-20 overflow-y-auto">
+                                                      {(r.nicknames || r.userIds)?.map((name, idx) => (
+                                                        <p key={idx} className="opacity-80">· {name}</p>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                  <div className="w-2 h-2 bg-gray-900/90 rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2" />
+                                                </div>
+                                              </div>
                                             ))}
                                           </div>
                                         )}
