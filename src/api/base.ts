@@ -122,9 +122,12 @@ export class BaseApiService {
     try {
       const response = await this.client.post<ApiResponse<T>>(url, data, config);
       
-      // 백엔드 ApiResponse 표준에 따라 code가 200 또는 201이 아니면 비즈니스 예외로 처리
+      // 백엔드 ApiResponse 표준에 따라 성공 코드 확인
+      // C2001: 성공, 200/201: 일반 성공
       const code = response.data.code?.toString();
-      if (code && code !== '200' && code !== '201') {
+      const isSuccess = code === '200' || code === '201' || code === 'C2001';
+      
+      if (code && !isSuccess) {
         const error = new Error(response.data.message || 'API Error');
         (error as any).response = response;
         throw error;

@@ -82,12 +82,20 @@ const ReportPage: React.FC<ReportPageProps> = ({
 
     setChatLoading(true);
     setChatError(null);
+    setChatResponse(null); // 이전 답변 초기화
 
     try {
       const response = await chatbotService.queryChatbot(chatQuery);
-      console.log('[Chatbot] Response received:', response);
-      setChatResponse(response.answer); // 기존 답변 덮어쓰기
-      setChatQuery(''); // 입력창 초기화
+      console.log('[Chatbot] Response received2:', response);
+      
+      // BaseApiService가 response.data.data를 반환하므로
+      // response = { answer: "...", sources: [...], generatedAt: "..." }
+      if (response && response.answer) {
+        setChatResponse(response.answer);
+        setChatQuery(''); // 입력창 초기화
+      } else {
+        setChatError('답변 형식이 올바르지 않습니다.');
+      }
     } catch (err: any) {
       console.error('[Chatbot] Error details:', {
         message: err.message,
