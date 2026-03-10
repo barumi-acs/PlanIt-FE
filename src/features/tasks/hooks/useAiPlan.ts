@@ -8,7 +8,8 @@ import { strategyService } from '../../../api/strategy.service';
 export const useAiPlan = (
   tasks: Task[], 
   setTasks: (tasks: Task[]) => void,
-  onSuccess?: () => void
+  onSuccess?: () => void,
+  selectedKeywords: string[] = [] // 🎯 추가
 ) => {
   const today = new Date().toISOString().split('T')[0];
   const [aiPrompt, setAiPrompt] = useState('');
@@ -81,9 +82,12 @@ export const useAiPlan = (
 
     setIsSaving(true);
 
+    // 🎯 물리적 핵심: 하드코딩된 'AI 생성 계획' 대신, 사용자가 선택한 진짜 카테고리명을 보냄
+    const categoryName = selectedKeywords.length > 0 ? selectedKeywords[0] : "기타";
+
     try {
       const response = await strategyService.savePlan({
-        categoryName: "AI 생성 계획", // 기본 카테고리명
+        categoryName: categoryName, 
         goal: {
           title: aiPrompt,
           startDate: aiStartDate,
