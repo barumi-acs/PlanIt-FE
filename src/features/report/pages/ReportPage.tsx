@@ -36,19 +36,17 @@ const ReportPage: React.FC<ReportPageProps> = ({
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const yearMonth = `${year}-${month}`;
-    
+
     // 간단한 주차 계산 (1일 기준)
     const day = now.getDate();
     const week = Math.ceil(day / 7);
-    
+
     return { yearMonth, week };
   };
 
   // 대시보드 데이터 로드
   useEffect(() => {
     const loadDashboard = async () => {
-      if (tasks.length < 10) return;
-
       setLoading(true);
       setError(null);
 
@@ -59,7 +57,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
         console.log('=== data: ', data);
       } catch (err: any) {
         console.error('Failed to load dashboard:', err);
-        
+
         // IS4041 에러 처리 (데이터 부족)
         if (err?.response?.data?.error?.code === 'IS4041') {
           setError('분석할 통계 데이터가 부족합니다.');
@@ -116,18 +114,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
       exit={{ opacity: 0, y: -10 }}
       className="h-full flex flex-col pt-4 relative"
     >
-      {tasks.length < 10 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-            <BarChart3 size={32} className="text-gray-300" />
-          </div>
-          <h4 className="font-bold mb-2">데이터가 부족합니다</h4>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            일 평균 3개 이상의 할 일을 등록하고 실천해주세요. <br/>
-            충분한 데이터가 쌓이면 AI 리포트가 생성됩니다.
-          </p>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
             <Brain size={32} className="text-primary" />
@@ -175,17 +162,17 @@ const ReportPage: React.FC<ReportPageProps> = ({
               <div className="h-[140px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dashboard.feedbacks.timeline.chartData}>
-                    <XAxis 
-                      dataKey="month" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} 
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }}
                     />
                     <Bar dataKey="completionRate" radius={[4, 4, 4, 4]} barSize={30}>
                       {dashboard.feedbacks.timeline.chartData.map((_entry: any, index: number) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={index === dashboard.feedbacks.timeline.chartData.length - 1 ? '#7C5CFF' : '#F3F4F6'} 
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={index === dashboard.feedbacks.timeline.chartData.length - 1 ? '#7C5CFF' : '#F3F4F6'}
                         />
                       ))}
                     </Bar>
@@ -212,7 +199,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
           {/* Pattern Analysis */}
           <div className="glass-card p-6 rounded-[32px]">
             <h4 className="text-sm font-bold mb-4">미룸 패턴 분석</h4>
-            
+
             {/* Pattern Chart */}
             {dashboard.feedbacks.pattern.chartData && dashboard.feedbacks.pattern.chartData.length > 0 && (
               <div className="h-[180px] w-full mb-6">
@@ -222,11 +209,11 @@ const ReportPage: React.FC<ReportPageProps> = ({
                     completed: item.completed,
                     postponed: item.postponed
                   }))}>
-                    <XAxis 
-                      dataKey="day" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} 
+                    <XAxis
+                      dataKey="day"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }}
                     />
                     <Tooltip cursor={{ fill: 'transparent' }} />
                     <Bar dataKey="completed" name="완료" fill="#7C5CFF" radius={[4, 4, 0, 0]} barSize={12} />
@@ -235,7 +222,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
                 </ResponsiveContainer>
               </div>
             )}
-            
+
             <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
               <div className="flex items-center gap-2 mb-2">
                 <ArrowRight size={14} className="text-red-400" />
