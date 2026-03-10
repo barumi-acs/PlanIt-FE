@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, Rocket, Plus, Check, MoreVertical, Edit2, ArrowRight, Trash2 } from 'lucide-react';
 import { useTasksContext } from '../../tasks/context/TasksContext';
 import { Task } from '../../../types';
 import AddTaskForm from '../../tasks/components/AddTaskForm';
+import { insightService } from '../../../api/insight.service';
+import { useNavigate } from 'react-router-dom';
 
 interface HomePageProps {
   today: string;
@@ -16,6 +18,7 @@ const HomePage: React.FC<HomePageProps> = ({
   selectedKeywords,
   setActiveTab,
 }) => {
+  const navigate = useNavigate();
   const task = useTasksContext();
   const {
     tasks, editingTaskId, setEditingTaskId, updateTask, deleteTask,
@@ -25,7 +28,39 @@ const HomePage: React.FC<HomePageProps> = ({
     monthlyGoals
   } = task;
 
+  const [dailyCheer, setDailyCheer] = useState<string>('데이터를 불러오는 중...');
+  const [isLoadingCheer, setIsLoadingCheer] = useState(true);
+
   const filteredTasks = tasks.filter(t => t.date === today);
+
+  // 일간 피드백 로드
+  useEffect(() => {
+    const loadDailyCheer = async () => {
+      try {
+        setIsLoadingCheer(true);
+        const response = await insightService.getDailyCheerFeedback();
+        console.log('Daily cheer response:', response);
+        // BaseApiService가 response.data.data를 반환하므로
+        // response = { cheerData: {...}, dayOfWeek: "MONDAY", targetDate: "2026-03-09" }
+        if (response?.cheerData?.message) {
+          setDailyCheer(response.cheerData.message);
+        } else {
+          setDailyCheer('오늘도 화이팅하세요!');
+        }
+      } catch (error) {
+        console.error('Failed to load daily cheer:', error);
+        setDailyCheer('오늘도 좋은 하루 되세요!');
+      } finally {
+        setIsLoadingCheer(false);
+      }
+    };
+
+    loadDailyCheer();
+  }, []);
+
+  const handleReportClick = () => {
+    navigate('/report');
+  };
 
   return (
     <motion.div
@@ -39,7 +74,7 @@ const HomePage: React.FC<HomePageProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-card p-4 rounded-2xl mb-6 bg-white border-primary/5 flex items-start gap-3 cursor-pointer hover:bg-white/90 transition-all"
-        onClick={() => setActiveTab('report')}
+        onClick={handleReportClick}
       >
         <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
           <MessageCircle size={18} />
@@ -50,7 +85,11 @@ const HomePage: React.FC<HomePageProps> = ({
             <span className="text-[10px] text-amber-500 font-bold">리포트 보기</span>
           </div>
           <p className="text-[11px] text-gray-500 leading-relaxed">
-            금요일은 평소보다 수행률이 <span className="text-primary font-bold">15% 높아요!</span> 이 기세를 몰아 오늘 계획도 완수해볼까요?
+            {isLoadingCheer ? (
+              <span className="animate-pulse">데이터를 불러오는 중...</span>
+            ) : (
+              dailyCheer
+            )}
           </p>
         </div>
       </motion.div>

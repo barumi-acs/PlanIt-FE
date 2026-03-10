@@ -47,7 +47,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
   // 대시보드 데이터 로드
   useEffect(() => {
     const loadDashboard = async () => {
-      if (tasks.length < 10) return;
+      // if (tasks.length < 10) return;
 
       setLoading(true);
       setError(null);
@@ -82,12 +82,20 @@ const ReportPage: React.FC<ReportPageProps> = ({
 
     setChatLoading(true);
     setChatError(null);
+    setChatResponse(null); // 이전 답변 초기화
 
     try {
       const response = await chatbotService.queryChatbot(chatQuery);
-      console.log('[Chatbot] Response received:', response);
-      setChatResponse(response.answer); // 기존 답변 덮어쓰기
-      setChatQuery(''); // 입력창 초기화
+      console.log('[Chatbot] Response received2:', response);
+      
+      // BaseApiService가 response.data.data를 반환하므로
+      // response = { answer: "...", sources: [...], generatedAt: "..." }
+      if (response && response.answer) {
+        setChatResponse(response.answer);
+        setChatQuery(''); // 입력창 초기화
+      } else {
+        setChatError('답변 형식이 올바르지 않습니다.');
+      }
     } catch (err: any) {
       console.error('[Chatbot] Error details:', {
         message: err.message,
@@ -116,18 +124,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
       exit={{ opacity: 0, y: -10 }}
       className="h-full flex flex-col pt-4 relative"
     >
-      {tasks.length < 10 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-            <BarChart3 size={32} className="text-gray-300" />
-          </div>
-          <h4 className="font-bold mb-2">데이터가 부족합니다</h4>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            일 평균 3개 이상의 할 일을 등록하고 실천해주세요. <br/>
-            충분한 데이터가 쌓이면 AI 리포트가 생성됩니다.
-          </p>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
             <Brain size={32} className="text-primary" />
