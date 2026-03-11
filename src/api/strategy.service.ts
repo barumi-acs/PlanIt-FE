@@ -93,8 +93,9 @@ class StrategyService extends BaseApiService {
             console.log('📦 Save API Response:', response.data);
 
             // 응답 구조에 따라 데이터 추출
-            if (response.data?.data) {
-                return response.data.data;
+            // 백엔드는 ApiResponse<Long> 반환 → data가 숫자이므로 {goalId} 객체로 래핑
+            if (response.data?.data !== undefined) {
+                return { goalId: response.data.data };
             }
             return response.data;
         } catch (error) {

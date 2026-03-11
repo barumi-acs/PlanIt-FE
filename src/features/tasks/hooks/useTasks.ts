@@ -261,6 +261,7 @@ export const useTasks = (selectedKeywords: string[]) => {
     if (!isNaN(numericId)) {
       try {
         await scheduleService.toggleTaskCompletion(numericId);
+        await loadGoals(); // 전체 complete/total 기준 진행률 갱신
       } catch (err) {
         console.error('[useTasks] 완료 토글 실패:', err);
         // Rollback
@@ -376,24 +377,17 @@ export const useTasks = (selectedKeywords: string[]) => {
     });
   }, []); // tasksRef는 ref이므로 의존성 불필요
 
-  // Calculate goal progress (백엔드 weekGoalsId 기반)
+  // Calculate goal progress: 백엔드에서 계산된 진행률 사용
   const calculateGoalProgress = (goalId: string): number => {
     const goal = monthlyGoals.find(g => g.id === goalId);
-    if (!goal || !goal.backendWeekGoals?.length) return 0;
-    const weekGoalsIds = new Set(goal.backendWeekGoals.map(wg => wg.weekGoalsId));
-    const goalTasks = tasks.filter(t => t.weekGoalsId != null && weekGoalsIds.has(t.weekGoalsId));
-    if (goalTasks.length === 0) return 0;
-    return Math.round((goalTasks.filter(t => t.completed).length / goalTasks.length) * 100);
+    return goal?.progressRate ?? 0;
   };
 
-  // Calculate weekly progress for a specific goal and week (백엔드 weekGoalsId 기반)
+  // Calculate weekly progress: 백엔드에서 계산된 주차별 진행률 사용
   const calculateWeeklyProgress = (goalId: string, weekIndex: number): number => {
     const goal = monthlyGoals.find(g => g.id === goalId);
     const weekGoal = goal?.backendWeekGoals?.[weekIndex];
-    if (!weekGoal) return 0;
-    const weekTasks = tasks.filter(t => t.weekGoalsId === weekGoal.weekGoalsId);
-    if (weekTasks.length === 0) return 0;
-    return Math.round((weekTasks.filter(t => t.completed).length / weekTasks.length) * 100);
+    return weekGoal?.progressRate ?? 0;
   };
 
   return {

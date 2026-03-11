@@ -44,6 +44,29 @@ export const SERVICE_URLS = {
 } as const;
 
 /**
+ * 토큰 자동 갱신 - 모듈 수준 상태 (모든 api 클라이언트 공유)
+ * 복수 요청이 동시에 401 받을 때 refresh 를 한 번만 호출하도록 큐잉
+ */
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: unknown) => void }> = [];
+
+const processQueue = (error: unknown, token: string | null = null): void => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token!);
+  });
+  failedQueue = [];
+};
+
+const clearAuthAndRedirect = (): void => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('userId');
+  localStorage.removeItem('user');
+  window.location.href = '/';
+};
+
+/**
  * 공통 Axios 인스턴스 생성 함수
  */
 export const createApiClient = (baseURL: string): AxiosInstance => {
@@ -84,20 +107,60 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
     }
   );
 
-  // Response Interceptor
+  // Response Interceptor — 401 시 refresh 토큰으로 자동 재발급 후 원본 요청 재시도
   instance.interceptors.response.use(
-    (response: AxiosResponse) => {
-      return response;
-    },
-    (error) => {
-      if (error.response?.status === 401) {
-        const isAuthPath = error.config?.url?.includes('/auth/');
-        if (!isAuthPath) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('userId');
-          window.location.href = '/';
+    (response: AxiosResponse) => response,
+    async (error) => {
+      const originalConfig = error.config as (typeof error.config & { _retry?: boolean });
+
+      // /auth/ 경로(login, refresh 등) 는 갱신 로직 건너뜀
+      const isAuthPath = originalConfig?.url?.includes('/auth/');
+
+      if (error.response?.status === 401 && !originalConfig._retry && !isAuthPath) {
+        const storedRefreshToken = localStorage.getItem('refreshToken');
+
+        if (!storedRefreshToken) {
+          clearAuthAndRedirect();
+          return Promise.reject(error);
+        }
+
+        // 이미 갱신 중이면 완료될 때까지 큐에서 대기
+        if (isRefreshing) {
+          return new Promise<string>((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((newToken) => {
+              originalConfig.headers.Authorization = `Bearer ${newToken}`;
+              return instance(originalConfig);
+            })
+            .catch((err) => Promise.reject(err));
+        }
+
+        originalConfig._retry = true;
+        isRefreshing = true;
+
+        try {
+          const refreshResponse = await axios.post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
+            `${SERVICE_URLS.USER}/api/v1/users/auth/refresh`,
+            { refreshToken: storedRefreshToken }
+          );
+
+          const { accessToken, refreshToken: newRefreshToken } = refreshResponse.data.data;
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', newRefreshToken);
+
+          originalConfig.headers.Authorization = `Bearer ${accessToken}`;
+          processQueue(null, accessToken);
+          return instance(originalConfig);
+        } catch (refreshError) {
+          processQueue(refreshError);
+          clearAuthAndRedirect();
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
         }
       }
+
       return Promise.reject(error);
     }
   );
