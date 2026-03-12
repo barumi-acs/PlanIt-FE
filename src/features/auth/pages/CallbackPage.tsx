@@ -39,9 +39,9 @@ export const CallbackPage: React.FC = () => {
                 const errorCode = loginError?.response?.data?.code;
                 console.log('[CallbackPage] 로그인 API 에러 발생, 코드:', errorCode);
 
-                if (errorCode === 4113) {
-                    // 신규 유저 (DB에 없음) → 온보딩으로
-                    console.log('[CallbackPage] 신규 유저 감지(4113) → 온보딩으로 이동');
+                // ✅ U4014: Cognito에 등록되지 않은 사용자 (신규 유저)
+                if (errorCode === 'U4014') {
+                    console.log('[CallbackPage] 신규 유저 감지(U4014) → 온보딩으로 이동');
                     sessionStorage.setItem('cognitoIdToken', idToken);
                     navigate('/onboarding');
                     return;
