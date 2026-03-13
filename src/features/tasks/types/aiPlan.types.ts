@@ -21,4 +21,5 @@ export interface PlanData {
     goal: {
         weekGoals: WeekGoal[];
     };
+    categoryName?: string; // 백엔드에서 생성된 카테고리명 (선택적 필드)
 }
