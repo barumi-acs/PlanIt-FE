@@ -37,10 +37,11 @@ export interface ApiError {
  * 서비스별 Base URL 설정
  */
 export const SERVICE_URLS = {
-  USER: import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:8081',
-  SCHEDULE: import.meta.env.VITE_SCHEDULE_SERVICE_URL || 'http://localhost:8082',
-  INTELLIGENCE: import.meta.env.VITE_INTELLIGENCE_SERVICE_URL || 'http://localhost:8083',
-  INSIGHT: import.meta.env.VITE_INSIGHT_SERVICE_URL || 'http://localhost:8084',
+  USER: import.meta.env.VITE_PLANIT_USER_SERVICE_URL || import.meta.env.VITE_USER_SERVICE_URL || '',
+  SCHEDULE: import.meta.env.VITE_PLANIT_SCHEDULE_SERVICE_URL || import.meta.env.VITE_SCHEDULE_SERVICE_URL || '',
+  INTELLIGENCE:
+    import.meta.env.VITE_PLANIT_STRATEGY_SERVICE_URL || import.meta.env.VITE_INTELLIGENCE_SERVICE_URL || '',
+  INSIGHT: import.meta.env.VITE_PLANIT_INSIGHT_SERVICE_URL || import.meta.env.VITE_INSIGHT_SERVICE_URL || '',
 } as const;
 
 /**
