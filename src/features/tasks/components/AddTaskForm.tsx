@@ -101,7 +101,15 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ date, selectedKeywords }) => 
               <option value="">목표를 선택하세요</option>
               {monthlyGoals.map(goal => (
                 <option key={goal.id} value={goal.id}>
-                  {goal.title} ({goal.category})
+                  {(() => {
+                    console.log('🖥 AddTaskForm 목표 옵션 카테고리 표시:', {
+                      goalId: goal.id,
+                      goalTitle: goal.title,
+                      displayedCategory: goal.category,
+                      fullGoal: goal
+                    });
+                    return `${goal.title} (${goal.category})`;
+                  })()}
                 </option>
               ))}
             </select>
