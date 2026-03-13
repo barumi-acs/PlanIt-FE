@@ -88,6 +88,8 @@ export const useTasks = (selectedKeywords: string[]) => {
   const loadGoals = useCallback(async () => {
     try {
       const goals = await scheduleService.getGoals();
+      console.log('🌐 목표 조회 API 응답:', goals);
+
       const details = await Promise.allSettled(
         goals.map(g => scheduleService.getGoalDetail(g.goalsId))
       );
@@ -95,17 +97,29 @@ export const useTasks = (selectedKeywords: string[]) => {
         const detail = details[i].status === 'fulfilled'
           ? (details[i] as PromiseFulfilledResult<GoalDetailApiResponse>).value
           : null;
-        return {
+
+        const mappedGoal = {
           id: g.goalsId.toString(),
           goalsId: g.goalsId,
           title: g.title,
-          category: CATEGORY_LIST_MAP[g.categoryId ?? 8] ?? '기타',
+          category: g.categoryName || '기타', // 🎯 백엔드 응답의 categoryName 직접 사용
           startDate: g.startDate,
           endDate: g.endDate,
           weeklyGoals: detail?.weekGoals.map(wg => wg.title) ?? [],
           backendWeekGoals: detail?.weekGoals ?? [],
           progressRate: detail?.progressRate ?? 0,
         };
+
+        // 🖥 화면 렌더 카테고리 값 로깅
+        console.log('🖥 화면 렌더 카테고리 값:', {
+          goalId: g.goalsId,
+          title: g.title,
+          backendCategoryName: g.categoryName,
+          finalCategory: mappedGoal.category,
+          rawGoalResponse: g
+        });
+
+        return mappedGoal;
       });
       setMonthlyGoals(mapped);
     } catch (err) {
