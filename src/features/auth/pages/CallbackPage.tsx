@@ -12,6 +12,24 @@ export const CallbackPage: React.FC = () => {
     const processedRef = useRef(false);
     const [timeoutReached, setTimeoutReached] = useState(false);
 
+    const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+        return new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+
+            promise
+                .then((value) => {
+                    clearTimeout(timer);
+                    resolve(value);
+                })
+                .catch((error) => {
+                    clearTimeout(timer);
+                    reject(error);
+                });
+        });
+    };
+
     const processLogin = async () => {
         if (processedRef.current) {
             console.log('[CallbackPage] 이미 처리 중');
@@ -21,7 +39,7 @@ export const CallbackPage: React.FC = () => {
 
         try {
             console.log('[CallbackPage] 토큰 교환 완료, 세션 가져오기 시작');
-            const session = await fetchAuthSession({ forceRefresh: true });
+            const session = await withTimeout(fetchAuthSession(), 15000, 'fetchAuthSession');
             const idToken = session.tokens?.idToken?.toString();
 
             if (!idToken) {
@@ -34,7 +52,11 @@ export const CallbackPage: React.FC = () => {
             console.log('[CallbackPage] idToken 획득 성공, 백엔드 로그인 호출');
             let authResponse;
             try {
-                authResponse = await userService.login({ cognitoIdToken: idToken });
+                authResponse = await withTimeout(
+                    userService.login({ cognitoIdToken: idToken }),
+                    15000,
+                    'userService.login'
+                );
             } catch (loginError: any) {
                 const errorCode = loginError?.response?.data?.code;
                 console.log('[CallbackPage] 로그인 API 에러 발생, 코드:', errorCode);
@@ -102,6 +124,16 @@ export const CallbackPage: React.FC = () => {
         console.log('[CallbackPage] 마운트됨, Hub 리스너 등록');
         let timeoutId: NodeJS.Timeout;
 
+        const query = new URLSearchParams(window.location.search);
+        const hasAuthCode = query.has('code');
+        const hasState = query.has('state');
+
+        // Hub 이벤트를 놓치는 환경을 대비해서 URL 쿼리 기준으로 즉시 처리한다.
+        if (hasAuthCode && hasState) {
+            console.log('[CallbackPage] URL code/state 감지 → processLogin 즉시 호출');
+            processLogin();
+        }
+
         const unsubscribe = Hub.listen('auth', ({ payload }) => {
             console.log('[CallbackPage] Auth 이벤트:', payload.event, payload);
 
@@ -121,9 +153,9 @@ export const CallbackPage: React.FC = () => {
             }
         });
 
-        // 10초 타임아웃
+        // 12초 타임아웃
         timeoutId = setTimeout(() => {
-            console.warn('[CallbackPage] 10초 타임아웃 도달, Hub 이벤트 없음');
+            console.warn('[CallbackPage] 12초 타임아웃 도달, Hub 이벤트 없음');
             setTimeoutReached(true);
 
             getCurrentUser()
@@ -138,7 +170,7 @@ export const CallbackPage: React.FC = () => {
                     alert('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
                     navigate('/');
                 });
-        }, 10000);
+        }, 12000);
 
         return () => {
             console.log('[CallbackPage] 언마운트, 리스너 해제');
