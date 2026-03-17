@@ -14,7 +14,7 @@ const amplifyConfig = {
                     domain: import.meta.env.VITE_COGNITO_DOMAIN,
                     scopes: ['openid', 'email', 'profile'],
                     redirectSignIn: [import.meta.env.VITE_COGNITO_REDIRECT_URI],
-                    redirectSignOut: [import.meta.env.VITE_APP_URL || 'http://localhost:3000'],
+                    redirectSignOut: [import.meta.env.VITE_APP_URL || window.location.origin],
                     responseType: 'code' as const,
                 },
             },

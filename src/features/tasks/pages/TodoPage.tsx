@@ -624,7 +624,17 @@ const TodoPage: React.FC<TodoPageProps> = ({
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-4 bg-primary rounded-full" />
                   <span className="text-sm font-bold">{goal.title}</span>
-                  <span className="text-[10px] text-gray-400">{goal.category}</span>
+                  <span className="text-[10px] text-gray-400">
+                    {(() => {
+                      console.log('🖥 TodoPage 주간 목표 카테고리 표시:', {
+                        goalId: goal.id,
+                        goalTitle: goal.title,
+                        displayedCategory: goal.category,
+                        fullGoal: goal
+                      });
+                      return goal.category;
+                    })()}
+                  </span>
                 </div>
 
                 {/* 주간 목표 박스들 */}
@@ -968,7 +978,15 @@ const TodoPage: React.FC<TodoPageProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="bg-primary/10 text-primary px-2 py-1 rounded-lg text-[10px] font-bold">
-                        {goal.category}
+                        {(() => {
+                          console.log('🖥 TodoPage 목표 상세 카테고리 표시:', {
+                            goalId: goal.id,
+                            goalTitle: goal.title,
+                            displayedCategory: goal.category,
+                            fullGoal: goal
+                          });
+                          return goal.category;
+                        })()}
                       </span>
                       {isExpanded ? (
                         <ChevronUp size={18} className="text-gray-400" />

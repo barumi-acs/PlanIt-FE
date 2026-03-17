@@ -57,7 +57,7 @@ class StrategyService extends BaseApiService {
     /**
      * AI 계획 생성
      * @param request - 목표 텍스트 및 기간 정보
-     * @returns AI가 생성한 주차별 계획 데이터
+     * @returns AI가 생성한 주차별 계획 데이터 (categoryName 포함)
      */
     async generatePlan(request: StrategyGeneratePlanRequest): Promise<PlanData> {
         try {
@@ -65,13 +65,28 @@ class StrategyService extends BaseApiService {
             console.log('📦 Generate API Response:', response.data);
 
             // 백엔드 응답 구조에 따라 데이터 추출
+            let planData: PlanData;
+
             if (response.data?.data) {
-                return response.data.data;
+                planData = response.data.data;
+            } else if (response.data?.goal) {
+                planData = response.data;
+            } else {
+                planData = response.data;
             }
-            if (response.data?.goal) {
-                return response.data;
+
+            // categoryName 필드 추출 및 보존
+            if (response.data?.categoryName) {
+                planData.categoryName = response.data.categoryName;
+                console.log('✅ CategoryName 추출됨:', response.data.categoryName);
+            } else if (response.data?.data?.categoryName) {
+                planData.categoryName = response.data.data.categoryName;
+                console.log('✅ CategoryName 추출됨 (nested):', response.data.data.categoryName);
+            } else {
+                console.log('⚠️ CategoryName이 백엔드 응답에 없음');
             }
-            return response.data;
+
+            return planData;
         } catch (error) {
             console.error('❌ Generate Plan Error:', error);
             throw error;
@@ -93,8 +108,9 @@ class StrategyService extends BaseApiService {
             console.log('📦 Save API Response:', response.data);
 
             // 응답 구조에 따라 데이터 추출
-            if (response.data?.data) {
-                return response.data.data;
+            // 백엔드는 ApiResponse<Long> 반환 → data가 숫자이므로 {goalId} 객체로 래핑
+            if (response.data?.data !== undefined) {
+                return { goalId: response.data.data };
             }
             return response.data;
         } catch (error) {

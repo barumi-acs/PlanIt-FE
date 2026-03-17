@@ -20,7 +20,15 @@ class TrendServiceImpl {
             const response = await apiClients.intelligence.get<CategoryTrendsResponse>(
                 `/api/v1/categories/${categoryId}/trends`
             );
-            const categoryData = response.data.data;
+            const categoryData = response.data?.data;
+
+            if (!categoryData || !Array.isArray(categoryData.trends)) {
+                console.error(
+                    `[TrendService] Invalid trends response for category ${categoryId}:`,
+                    response.data
+                );
+                return [];
+            }
 
             // Add categoryName to each trend
             return categoryData.trends.map(trend => ({
@@ -43,7 +51,7 @@ class TrendServiceImpl {
             const response = await apiClients.intelligence.get<TrendGoalsResponse>(
                 `/api/v1/trends/${trendId}/goals`
             );
-            return response.data.data;
+            return Array.isArray(response.data?.data) ? response.data.data : [];
         } catch (error) {
             console.error(`[TrendService] Failed to fetch goals for trend ${trendId}:`, error);
             return [];

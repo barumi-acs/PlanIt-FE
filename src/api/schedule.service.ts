@@ -49,6 +49,7 @@ export interface GoalResponse {
 export interface BackendWeekGoal {
   weekGoalsId: number;
   title: string;
+  progressRate?: number;
 }
 
 export interface GoalDetailApiResponse {
@@ -57,6 +58,7 @@ export interface GoalDetailApiResponse {
   categoryName: string;
   startDate: string;
   endDate: string;
+  progressRate?: number;
   weekGoals: BackendWeekGoal[];
 }
 

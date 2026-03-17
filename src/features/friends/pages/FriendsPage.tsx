@@ -11,8 +11,10 @@ import { UserPlus, UserMinus, Check, X, Search, Users, Bell } from 'lucide-react
 import { Friend } from '../../../api/user.service';
 import FriendTodoView from '../components/FriendTodoView';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAlert } from '../../../components/common/Alert';
 
 export const FriendsPage: React.FC = () => {
+  const { success: showSuccess } = useAlert();
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [reactionTaskId, setReactionTaskId] = useState<string | null>(null);
 
@@ -85,7 +87,7 @@ export const FriendsPage: React.FC = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => sendFriendRequest(user.userId).then(() => { alert('요청을 보냈습니다'); setSearchKeyword(''); })}
+                      onClick={() => sendFriendRequest(user.userId).then(() => { showSuccess('요청을 보냈습니다'); setSearchKeyword(''); })}
                       disabled={isSending}
                       className="px-3 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg hover:bg-primary/90 disabled:opacity-50"
                     >

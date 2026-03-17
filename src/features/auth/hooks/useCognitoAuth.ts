@@ -4,8 +4,10 @@
 
 import { useState, useEffect } from 'react';
 import { signInWithRedirect, signOut, getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { useAlert } from '../../../components/common/Alert';
 
 export const useCognitoAuth = () => {
+    const { error: showError } = useAlert();
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
     const [idToken, setIdToken] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export const useCognitoAuth = () => {
                 toString: error?.toString(),
             });
             setError(error.message);
-            alert(`로그인 실패: ${error.message || error.toString()}`);
+            showError(`로그인 실패: ${error.message || error.toString()}`);
             throw error;
         }
     };
