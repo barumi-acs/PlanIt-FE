@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../hooks/useUser';
 import { useCategories } from '../../auth/hooks/useCategories';
 import { useAuth } from '../../auth/context/AuthContext';
+import { useAlert } from '../../../components/common/Alert';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const MyPage: React.FC = () => {
   const { profile, updateProfile, deleteAccount, isLoading } = useUser();
   const { data: categories } = useCategories();
   const { logout } = useAuth();
+  const { warning, success, error } = useAlert();
   const navigate = useNavigate();
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -34,12 +36,12 @@ const MyPage: React.FC = () => {
   // 프로필 저장
   const handleSaveProfile = async () => {
     if (tempCategoryIds.length < 3) {
-      alert('카테고리를 최소 3개 이상 선택해주세요.');
+      warning('카테고리를 최소 3개 이상 선택해주세요.');
       return;
     }
 
     if (tempCategoryIds.length > 4) {
-      alert('카테고리는 최대 4개까지 선택할 수 있습니다.');
+      warning('카테고리는 최대 4개까지 선택할 수 있습니다.');
       return;
     }
 
@@ -48,9 +50,11 @@ const MyPage: React.FC = () => {
         nickname: tempNickname,
         interestCategoryIds: tempCategoryIds,
       });
+      success('프로필이 저장되었습니다!');
       setIsEditingProfile(false);
-    } catch (error) {
-      console.error('프로필 수정 실패:', error);
+    } catch (err) {
+      console.error('프로필 수정 실패:', err);
+      error('프로필 저장에 실패했습니다.');
     }
   };
 
@@ -72,7 +76,7 @@ const MyPage: React.FC = () => {
     } else if (tempCategoryIds.length < 4) {
       setTempCategoryIds([...tempCategoryIds, categoryId]);
     } else {
-      alert('카테고리는 최대 4개까지 선택할 수 있습니다.');
+      warning('카테고리는 최대 4개까지 선택할 수 있습니다.');
     }
   };
 

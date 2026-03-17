@@ -6,11 +6,13 @@ import { useAuth } from '../../auth/context/AuthContext';
 import { useCategories } from '../../auth/hooks/useCategories';
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner';
 import { User, Edit2, LogOut, Trash2 } from 'lucide-react';
+import { useAlert } from '../../../components/common/Alert';
 
 export const ProfilePage: React.FC = () => {
     const navigate = useNavigate();
     const { user, logout, updateUser } = useAuth();
     const { data: categories, isLoading: categoriesLoading } = useCategories();
+    const { success: showSuccess, error: showError } = useAlert();
 
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
@@ -26,10 +28,10 @@ export const ProfilePage: React.FC = () => {
                 email: response.email,
             });
             setIsEditing(false);
-            alert('프로필이 수정되었습니다.');
+            showSuccess('프로필이 수정되었습니다.');
         },
         onError: (error: any) => {
-            alert(error.message || '프로필 수정에 실패했습니다.');
+            showError(error.message || '프로필 수정에 실패했습니다.');
         },
     });
 
@@ -38,10 +40,10 @@ export const ProfilePage: React.FC = () => {
         onSuccess: () => {
             logout();
             navigate('/login');
-            alert('계정이 삭제되었습니다.');
+            showSuccess('계정이 삭제되었습니다.');
         },
         onError: (error: any) => {
-            alert(error.message || '계정 삭제에 실패했습니다.');
+            showError(error.message || '계정 삭제에 실패했습니다.');
         },
     });
 
@@ -56,12 +58,12 @@ export const ProfilePage: React.FC = () => {
 
     const handleSaveProfile = () => {
         if (!formData.nickname.trim()) {
-            alert('닉네임을 입력해주세요.');
+            showError('닉네임을 입력해주세요.');
             return;
         }
 
         if (formData.selectedCategories.length === 0) {
-            alert('최소 1개 이상의 관심 카테고리를 선택해주세요.');
+            showError('최소 1개 이상의 관심 카테고리를 선택해주세요.');
             return;
         }
 

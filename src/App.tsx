@@ -13,6 +13,7 @@ import { Task, Friend, FriendRequest, ViewMode, Tab } from './types';
 import { FriendsProvider } from './features/friends/context/FriendsContext';
 import { TasksProvider } from './features/tasks/context/TasksContext';
 import { AuthProvider, useAuth } from './features/auth/context/AuthContext';
+import { AlertProvider } from './components/common/Alert';
 import { Routes, Route } from 'react-router-dom';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
@@ -142,19 +143,21 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        {/* /auth/callback은 AuthProvider 안에서 처리 */}
-        <Route
-          path="/auth/callback"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <CallbackPage />
-            </Suspense>
-          }
-        />
-        {/* 나머지 모든 경로 */}
-        <Route path="*" element={<AppContent />} />
-      </Routes>
+      <AlertProvider>
+        <Routes>
+          {/* /auth/callback은 AuthProvider 안에서 처리 */}
+          <Route
+            path="/auth/callback"
+            element={
+              <Suspense fallback={<LoadingSpinner />}>
+                <CallbackPage />
+              </Suspense>
+            }
+          />
+          {/* 나머지 모든 경로 */}
+          <Route path="*" element={<AppContent />} />
+        </Routes>
+      </AlertProvider>
     </AuthProvider>
   );
 }

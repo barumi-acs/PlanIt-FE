@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Task } from '../../../types';
 import { PlanData } from '../types/aiPlan.types';
 import { strategyService } from '../../../api/strategy.service';
+import { useAlert } from '../../../components/common/Alert';
 
 export const useAiPlan = (
   tasks: Task[],
@@ -11,6 +12,7 @@ export const useAiPlan = (
   onSuccess?: () => void,
   selectedKeywords: string[] = [] // 🎯 추가
 ) => {
+  const { error: showError, success: showSuccess } = useAlert();
   const today = new Date().toISOString().split('T')[0];
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiStartDate, setAiStartDate] = useState(today);
@@ -47,7 +49,7 @@ export const useAiPlan = (
         console.error('Base URL:', error.config?.baseURL);
       }
 
-      alert("AI 계획 생성에 실패했습니다. 다시 시도해주세요.");
+      showError("AI 계획 생성에 실패했습니다. 다시 시도해주세요.");
 
       // Fallback: 기존 로직 유지 (개발 중 백엔드 없을 때 대비)
       try {
@@ -76,7 +78,7 @@ export const useAiPlan = (
 
   const savePlan = async () => {
     if (!planData || !planData.goal) {
-      alert("저장할 계획이 없습니다.");
+      showError("저장할 계획이 없습니다.");
       return;
     }
 
@@ -116,7 +118,7 @@ export const useAiPlan = (
     try {
       const response = await strategyService.savePlan(saveRequest);
 
-      alert(`계획이 저장되었습니다! (Goal ID: ${response.goalId})`);
+      showSuccess(`계획이 저장되었습니다! (Goal ID: ${response.goalId})`);
 
       // 🔄 서버 데이터 재조회 트리거 호출
       if (onSuccess) {
@@ -134,7 +136,7 @@ export const useAiPlan = (
         console.error('에러 메시지:', error.response?.data);
       }
 
-      alert("계획 저장에 실패했습니다. 다시 시도해주세요.");
+      showError("계획 저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsSaving(false);
     }

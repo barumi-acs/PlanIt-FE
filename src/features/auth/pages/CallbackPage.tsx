@@ -4,11 +4,13 @@ import { Hub } from 'aws-amplify/utils';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { LoadingSpinner } from '../../../components/common/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../../../components/common/Alert';
 import { userService } from '../../../api/user.service';
 
 export const CallbackPage: React.FC = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
+    const { error, warning } = useAlert();
     const processedRef = useRef(false);
     const [timeoutReached, setTimeoutReached] = useState(false);
 
@@ -44,7 +46,7 @@ export const CallbackPage: React.FC = () => {
 
             if (!idToken) {
                 console.error('[CallbackPage] idToken 없음');
-                alert('로그인 처리 중 오류가 발생했습니다. (토큰 없음)');
+                error('로그인 처리 중 오류가 발생했습니다. (토큰 없음)');
                 navigate('/');
                 return;
             }
@@ -92,7 +94,7 @@ export const CallbackPage: React.FC = () => {
                 if (isRestricted) {
                     const availableAt = (data as any)?.availableAt;
 
-                    alert(
+                    warning(
                         `탈퇴 후 90일간 재가입이 불가능합니다.\n재가입 가능일: ${availableAt}`,
                     );
                     navigate('/');
@@ -115,7 +117,7 @@ export const CallbackPage: React.FC = () => {
             console.error('[CallbackPage] 에러 메시지:', error?.message);
             console.error('[CallbackPage] 에러 응답:', error?.response?.data);
             console.error('[CallbackPage] 에러 상태코드:', error?.response?.status);
-            alert(`로그인 처리 중 오류가 발생했습니다: ${error?.message}`);
+            error(`로그인 처리 중 오류가 발생했습니다: ${error?.message}`);
             navigate('/');
         }
     };
@@ -148,7 +150,7 @@ export const CallbackPage: React.FC = () => {
             if (payload.event === 'signInWithRedirect_failure') {
                 console.error('[CallbackPage] 로그인 실패:', payload.data);
                 clearTimeout(timeoutId);
-                alert('로그인에 실패했습니다. 다시 시도해주세요.');
+                error('로그인에 실패했습니다. 다시 시도해주세요.');
                 navigate('/');
             }
         });
@@ -165,9 +167,9 @@ export const CallbackPage: React.FC = () => {
                     );
                     processLogin();
                 })
-                .catch((error) => {
-                    console.error('[CallbackPage] 타임아웃 후 사용자 확인 실패:', error);
-                    alert('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
+                .catch((err) => {
+                    console.error('[CallbackPage] 타임아웃 후 사용자 확인 실패:', err);
+                    error('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
                     navigate('/');
                 });
         }, 12000);

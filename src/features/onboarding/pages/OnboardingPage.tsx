@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { userService } from '../../../api/user.service';
 import { useAuth } from '../../auth/context/AuthContext';
 import { useCognitoAuth } from '../../auth/hooks/useCognitoAuth';
+import { useAlert } from '../../../components/common/Alert';
 import ErrorPage from '../../../components/common/ErrorPage';
 
 const PlanetAnimation = ({ size = 'large' }: { size?: 'small' | 'large' }) => {
@@ -98,6 +99,7 @@ export default function OnboardingPage() {
   } = useCategories();
   const { login } = useAuth();
   const { login: cognitoLogin } = useCognitoAuth();
+  const { warning, error, info } = useAlert();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -113,23 +115,23 @@ export default function OnboardingPage() {
     } else if (selectedCategoryIds.length < 4) {
       setSelectedCategoryIds([...selectedCategoryIds, categoryId]);
     } else {
-      alert('카테고리는 최대 4개까지 선택할 수 있습니다.');
+      warning('카테고리는 최대 4개까지 선택할 수 있습니다.');
     }
   };
 
   const handleComplete = async () => {
     if (!agreedTerms.service || !agreedTerms.privacy) {
-      alert('필수 약관에 동의해주세요.');
+      warning('필수 약관에 동의해주세요.');
       return;
     }
 
     if (selectedCategoryIds.length < 3) {
-      alert('카테고리를 최소 3개 이상 선택해주세요.');
+      warning('카테고리를 최소 3개 이상 선택해주세요.');
       return;
     }
 
     if (selectedCategoryIds.length > 4) {
-      alert('카테고리는 최대 4개까지 선택할 수 있습니다.');
+      warning('카테고리는 최대 4개까지 선택할 수 있습니다.');
       return;
     }
 
@@ -138,7 +140,7 @@ export default function OnboardingPage() {
       const cognitoIdToken = sessionStorage.getItem('cognitoIdToken');
 
       if (!cognitoIdToken) {
-        alert('로그인 정보가 만료되었습니다. 다시 로그인해주세요.');
+        error('로그인 정보가 만료되었습니다. 다시 로그인해주세요.');
         navigate('/');
         return;
       }
@@ -170,7 +172,7 @@ export default function OnboardingPage() {
 
       if (!authData || !authData.accessToken) {
         console.error('[OnboardingPage] authData 없음 또는 accessToken 누락:', authData);
-        alert('회원가입 처리 중 오류가 발생했습니다. (서버 응답 없음)\n브라우저 콘솔 및 User-svc 서버 로그를 확인해주세요.');
+        error('회원가입 처리 중 오류가 발생했습니다. (서버 응답 없음)\n브라우저 콘솔 및 User-svc 서버 로그를 확인해주세요.');
         return; // navigate 없이 return → cognitoIdToken 유지
       }
 
@@ -179,21 +181,21 @@ export default function OnboardingPage() {
 
       login(authData);
       navigate('/');
-    } catch (error: any) {
-      console.error('회원가입 실패:', error);
-      console.error('에러 응답 데이터:', error?.response?.data);
-      console.error('에러 상태코드:', error?.response?.status);
+    } catch (err: any) {
+      console.error('회원가입 실패:', err);
+      console.error('에러 응답 데이터:', err?.response?.data);
+      console.error('에러 상태코드:', err?.response?.status);
 
-      const message = error?.response?.data?.message;
+      const message = err?.response?.data?.message;
 
       // ✅ 90일 재가입 제한 팝업
       if (message?.includes('90일')) {
-        alert('탈퇴 한 후 90일 동안 재가입이 불가능합니다.');
+        warning('탈퇴 한 후 90일 동안 재가입이 불가능합니다.');
         navigate('/');
         return;
       }
 
-      alert(message || '회원가입에 실패했습니다. 다시 시도해주세요.');
+      error(message || '회원가입에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }
