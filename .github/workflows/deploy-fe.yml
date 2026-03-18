@@ -17,12 +17,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          # cache 제거 (중요🔥)
 
       - name: dependencies 설치 (clean)
         run: |
           rm -rf node_modules package-lock.json
-          npm install
+          npm install --no-optional
 
       - name: build
         run: npm run build
