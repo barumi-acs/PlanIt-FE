@@ -16,15 +16,17 @@ jobs:
       - name: Node 설치
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 18.20.8
 
-      - name: dependencies 설치
+      - name: dependencies 설치 (CI-safe)
         run: |
           rm -rf node_modules package-lock.json
-          npm install --include=optional
+          npm install --include=optional --legacy-peer-deps
 
       - name: build
         run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: AWS 인증
         uses: aws-actions/configure-aws-credentials@v4
