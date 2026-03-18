@@ -16,15 +16,18 @@ jobs:
       - name: Node 설치
         uses: actions/setup-node@v4
         with:
-          node-version: 18.20.8
+          node-version: 20
 
-      - name: dependencies 설치 (CI-safe)
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --include=optional --legacy-peer-deps
+      - name: pnpm 설치
+        run: npm install -g pnpm
 
+      # lockfile 기준으로 OS 맞게 설치
+      - name: dependencies 설치
+        run: pnpm install
+
+      # 빌드
       - name: build
-        run: npm run build
+        run: pnpm build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
