@@ -47,11 +47,6 @@ const ReportPage: React.FC<ReportPageProps> = ({
   // 대시보드 데이터 로드
   useEffect(() => {
     const loadDashboard = async () => {
-<<<<<<< HEAD
-      // if (tasks.length < 10) return;
-
-=======
->>>>>>> 4d88f113a9f86bdb5c60eb791ddcc7863c27d5f4
       setLoading(true);
       setError(null);
 
