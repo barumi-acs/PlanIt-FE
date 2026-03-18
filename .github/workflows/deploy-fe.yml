@@ -3,7 +3,7 @@ name: Deploy Frontend to S3 + CloudFront
 on:
   push:
     branches:
-      - develop   # 원하는 브랜치
+      - develop
 
 jobs:
   deploy:
@@ -17,9 +17,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
 
-      - name: npm install
-        run: npm install
+      - name: dependencies 설치 (clean)
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: build
         run: npm run build
