@@ -5,6 +5,9 @@ on:
     branches:
       - develop
 
+env:
+  SERVICE_NAME: planit-fe
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -51,3 +54,42 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
+      
+
+      # 🔥 실패 알림
+      - name: 🔥 Notify FE Deploy Failure
+        if: always() && failure()
+        run: |
+          aws sns publish \
+            --region ${{ env.AWS_REGION }} \
+            --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+            --message '{
+              "type": "CD",
+              "workflow": "${{ github.workflow }}",
+              "service": "'$SERVICE_NAME'",
+              "env": "dev",
+              "stage": "fe-deploy",
+              "status": "FAILED",
+              "message": "${{ github.event.head_commit.message }}",
+              "author": "${{ github.actor }}",
+              "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }'
+
+        # 🚀 성공 알림
+      - name: 🚀 Notify CD Success
+        if: success()
+        run: |
+          aws sns publish \
+            --region ${{ env.AWS_REGION }} \
+            --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+            --message '{
+              "type": "CD",
+              "workflow": "${{ github.workflow }}",
+              "service": "'$SERVICE_NAME'",
+              "env": "dev",
+              "stage": "fe-deploy",
+              "status": "SUCCESS",
+              "message": "${{ github.event.head_commit.message }}",
+              "author": "${{ github.actor }}",
+              "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }'
