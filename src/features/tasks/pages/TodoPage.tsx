@@ -4,7 +4,7 @@ import { Plus, Calendar as CalendarIcon, X, Check, MoreVertical, Edit2, ArrowRig
 import { ViewMode } from '../../../types';
 import { Task } from '../types';
 import { useTasksContext } from '../context/TasksContext';
-import AddTaskForm from '../components/AddTaskForm';
+import { Portal } from '../../../components/common/Portal';
 
 const DB_CATEGORIES = ['직무/커리어', '어학/자격증', '독서/학습', '건강/운동', '재테크/경제', '마인드/루틴', '취미/관계', '기타'];
 
@@ -32,7 +32,7 @@ const TodoPage: React.FC<TodoPageProps> = ({
     activeMenuId, setActiveMenuId, addTask, updateTask, deleteTask,
     toggleComplete, postponeTask, cancelAddingTask,
     reactionsMap,
-    setCurrentDate, loadTasks, refreshReactions,
+    setCurrentDate, refreshReactions,
     // Task with Goal
     hasGoal, setHasGoal, selectedGoalId, setSelectedGoalId,
     selectedWeekIndex, setSelectedWeekIndex,
@@ -98,6 +98,27 @@ const TodoPage: React.FC<TodoPageProps> = ({
   const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
   // weekly 탭: 펼쳐진 주간 목표 키 (goalId-weekGoalsId 복합 키, 목표별 독립 토글)
   const [expandedWeekGoalKey, setExpandedWeekGoalKey] = useState<string | null>(null);
+  
+  // Portal menu position
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // 외부 클릭 감지하여 메뉴 닫기
+  useEffect(() => {
+    if (!activeMenuId) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // 메뉴 버튼이나 메뉴 내부 클릭은 무시
+      if (target.closest('[data-menu-button]') || target.closest('[data-menu-popup]')) {
+        return;
+      }
+      setActiveMenuId(null);
+      setMenuPosition(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeMenuId, setActiveMenuId]);
 
   // Calculate weeks when dates change
   const weeksCount = calculateWeeks(newGoalStartDate, newGoalEndDate);
@@ -425,7 +446,15 @@ const TodoPage: React.FC<TodoPageProps> = ({
                               )}
                             </div>
                             <button
-                              onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
+                              data-menu-button
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuPosition({
+                                  top: rect.bottom + 4,
+                                  left: rect.right - 128
+                                });
+                                setActiveMenuId(activeMenuId === task.id ? null : task.id);
+                              }}
                               className="p-1 text-gray-400 hover:text-gray-600"
                             >
                               <MoreVertical size={18} />
@@ -461,24 +490,6 @@ const TodoPage: React.FC<TodoPageProps> = ({
                                 </div>
                               ))}
                             </div>
-                          )}
-                          {activeMenuId === task.id && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                              className="absolute right-0 top-14 z-50 w-32 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 overflow-hidden"
-                            >
-                              <button onClick={() => setEditingTaskId(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
-                                <Edit2 size={14} /> 수정
-                              </button>
-                              <button onClick={() => postponeTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
-                                <ArrowRight size={14} /> 미루기
-                              </button>
-                              <button onClick={() => deleteTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl">
-                                <Trash2 size={14} /> 삭제
-                              </button>
-                            </motion.div>
                           )}
                         </div>
                       </div>
@@ -531,7 +542,15 @@ const TodoPage: React.FC<TodoPageProps> = ({
                                             )}
                                           </div>
                                           <button
-                                            onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
+                                            data-menu-button
+                                            onClick={(e) => {
+                                              const rect = e.currentTarget.getBoundingClientRect();
+                                              setMenuPosition({
+                                                top: rect.bottom + 4,
+                                                left: rect.right - 128
+                                              });
+                                              setActiveMenuId(activeMenuId === task.id ? null : task.id);
+                                            }}
                                             className="p-1 text-gray-400 hover:text-gray-600"
                                           >
                                             <MoreVertical size={16} />
@@ -567,24 +586,6 @@ const TodoPage: React.FC<TodoPageProps> = ({
                                               </div>
                                             ))}
                                           </div>
-                                        )}
-                                        {activeMenuId === task.id && (
-                                          <motion.div
-                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                            className="absolute right-0 top-12 z-50 w-32 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 overflow-hidden"
-                                          >
-                                            <button onClick={() => setEditingTaskId(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
-                                              <Edit2 size={14} /> 수정
-                                            </button>
-                                            <button onClick={() => postponeTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl">
-                                              <ArrowRight size={14} /> 미루기
-                                            </button>
-                                            <button onClick={() => deleteTask(task.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl">
-                                              <Trash2 size={14} /> 삭제
-                                            </button>
-                                          </motion.div>
                                         )}
                                       </div>
                                     </div>
@@ -1085,6 +1086,65 @@ const TodoPage: React.FC<TodoPageProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* Portal Menu Popup */}
+      {activeMenuId && menuPosition && (
+        <Portal>
+          <AnimatePresence>
+            <motion.div
+              data-menu-popup
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: 'fixed',
+                top: `${menuPosition.top}px`,
+                left: `${menuPosition.left}px`,
+                zIndex: 9999,
+              }}
+              className="w-32 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
+            >
+              <button
+                onClick={() => {
+                  setEditingTaskId(activeMenuId);
+                  setActiveMenuId(null);
+                  setMenuPosition(null);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2 transition-all"
+              >
+                <Edit2 size={14} className="text-gray-400" />
+                <span>수정</span>
+              </button>
+              <button
+                onClick={() => {
+                  const task = tasks.find(t => t.id === activeMenuId);
+                  if (task && !task.completed) {
+                    postponeTask(activeMenuId);
+                  }
+                  setActiveMenuId(null);
+                  setMenuPosition(null);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2 transition-all"
+              >
+                <ArrowRight size={14} className="text-gray-400" />
+                <span>미루기</span>
+              </button>
+              <button
+                onClick={() => {
+                  deleteTask(activeMenuId);
+                  setActiveMenuId(null);
+                  setMenuPosition(null);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-red-50 text-red-500 flex items-center gap-2 transition-all"
+              >
+                <Trash2 size={14} />
+                <span>삭제</span>
+              </button>
+            </motion.div>
+          </AnimatePresence>
+        </Portal>
       )}
     </motion.div>
   );

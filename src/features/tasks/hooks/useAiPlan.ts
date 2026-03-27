@@ -118,7 +118,8 @@ export const useAiPlan = (
     try {
       const response = await strategyService.savePlan(saveRequest);
 
-      showSuccess(`계획이 저장되었습니다! (Goal ID: ${response.goalId})`);
+      // showSuccess(`계획이 저장되었습니다! (Goal ID: ${response.goalId})`);
+      showSuccess(`계획이 저장되었습니다.`);
 
       // 🔄 서버 데이터 재조회 트리거 호출
       if (onSuccess) {
